@@ -16,10 +16,12 @@ import {
 } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import Avatar from '@/components/ui/Avatar';
+import { useThemeStore } from '@/store/themeStore';
 
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuthStore();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const isCollapsed = useThemeStore((state) => state.layout.sideNavCollapse);
+  const setSideNavCollapse = useThemeStore((state) => state.setSideNavCollapse);
 
   const navItems = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -51,7 +53,7 @@ export const Sidebar: React.FC = () => {
             )}
           </div>
           <button 
-            onClick={() => setIsCollapsed(!isCollapsed)}
+            onClick={() => setSideNavCollapse(!isCollapsed)}
             className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded transition-colors"
           >
             {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}

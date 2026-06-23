@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import Avatar from '@/components/ui/Avatar';
+import { useThemeStore } from '@/store/themeStore';
 
 interface AppLayoutProps {
   children?: React.ReactNode;
@@ -23,6 +24,7 @@ interface AppLayoutProps {
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const { isAuthenticated, user, logout } = useAuthStore();
+  const isCollapsed = useThemeStore((state) => state.layout.sideNavCollapse);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // If not authenticated, redirect to /login
@@ -123,7 +125,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       </Drawer>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col md:pl-60 transition-all duration-300 min-w-0">
+      <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:pl-16' : 'md:pl-60'} transition-all duration-300 min-w-0`}>
         <Topbar onMobileMenuToggle={() => setMobileMenuOpen(true)} />
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
           {children || <Outlet />}

@@ -36,8 +36,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Vehicles', path: '/vehicles', icon: Bus },
     { label: 'Drivers', path: '/drivers', icon: UserCheck },
-    { label: 'Students', path: '/students', icon: GraduationCap, isPlaceholder: true },
-    { label: 'Passengers', path: '/passengers', icon: Users, isPlaceholder: true },
+    { label: 'Students', path: '/students', icon: GraduationCap },
+    { label: 'Passengers', path: '/passengers', icon: Users },
     { label: 'Transactions', path: '/transactions', icon: Receipt, isPlaceholder: true },
     { label: 'Settings', path: '/settings', icon: Settings, isPlaceholder: true },
   ];

@@ -13,6 +13,12 @@ import VehicleDetailPage from '@/pages/vehicles/VehicleDetailPage';
 import DriversPage from '@/pages/drivers/DriversPage';
 import DriverFormPage from '@/pages/drivers/DriverFormPage';
 import DriverDetailPage from '@/pages/drivers/DriverDetailPage';
+import StudentsPage from '@/pages/students/StudentsPage';
+import StudentFormPage from '@/pages/students/StudentFormPage';
+import StudentDetailPage from '@/pages/students/StudentDetailPage';
+import PassengersPage from '@/pages/passengers/PassengersPage';
+import PassengerFormPage from '@/pages/passengers/PassengerFormPage';
+import PassengerDetailPage from '@/pages/passengers/PassengerDetailPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
 // Initialize React Query Client
@@ -78,6 +84,18 @@ function App() {
               <Route path="drivers/new" element={<DriverFormPage />} />
               <Route path="drivers/:id" element={<DriverDetailPage />} />
               <Route path="drivers/:id/edit" element={<DriverFormPage />} />
+              
+              {/* Students routes */}
+              <Route path="students" element={<StudentsPage />} />
+              <Route path="students/new" element={<StudentFormPage />} />
+              <Route path="students/:id" element={<StudentDetailPage />} />
+              <Route path="students/:id/edit" element={<StudentFormPage />} />
+
+              {/* Passengers routes */}
+              <Route path="passengers" element={<PassengersPage />} />
+              <Route path="passengers/new" element={<PassengerFormPage />} />
+              <Route path="passengers/:id" element={<PassengerDetailPage />} />
+              <Route path="passengers/:id/edit" element={<PassengerFormPage />} />
             </Route>
 
             {/* 404 Fallback */}

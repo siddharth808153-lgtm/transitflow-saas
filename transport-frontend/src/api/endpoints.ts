@@ -29,3 +29,24 @@ export const DRIVERS = {
   ASSIGN: (id: string | number) => `/drivers/${id}/assign`,
   RELIEVE: (id: string | number) => `/drivers/${id}/relieve`,
 };
+
+export const STUDENTS = {
+  LIST: '/students',
+  CREATE: '/students',
+  UPDATE: (id: number | string) => `/students/${id}`,
+  DELETE: (id: number | string) => `/students/${id}`,
+  DETAIL: (id: number | string) => `/students/${id}`,
+  ASSIGN_VEHICLE: (id: number | string) => `/students/${id}/assign`,
+  REMOVE_VEHICLE: (id: number | string) => `/students/${id}/remove`,
+  ASSIGNMENT_HISTORY: (id: number | string) => `/students/${id}/assignments`,
+  DUES: (id: number | string) => `/students/${id}/dues`,
+};
+
+export const PASSENGERS = {
+  LIST: '/passengers',
+  CREATE: '/passengers',
+  UPDATE: (id: number | string) => `/passengers/${id}`,
+  DELETE: (id: number | string) => `/passengers/${id}`,
+  DETAIL: (id: number | string) => `/passengers/${id}`,
+  DUES: (id: number | string) => `/passengers/${id}/dues`,
+};

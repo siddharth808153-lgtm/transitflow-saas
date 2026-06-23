@@ -73,11 +73,18 @@ export interface AutoPassenger {
 export interface Transaction {
   id: number
   amount: number
-  transaction_type: 'student_fee' | 'auto_daily' | 'driver_wage'
+  transaction_type: 'student_fee' | 'auto_daily' | 'driver_wage' | 'other'
   payment_method: 'cash' | 'upi' | 'bank' | 'other'
   payment_for_month?: string
   payment_for_date?: string
   notes?: string
+  vehicle_id?: number
+  vehicle?: Vehicle
+  collected_by?: number
+  collector?: User
+  reference_type?: 'student' | 'auto_passenger' | 'driver'
+  reference_id?: number
+  reference?: any
   created_at: string
 }
 
@@ -89,6 +96,12 @@ export interface Due {
   due_for_date?: string
   paid_at?: string
   transaction_id?: number
+  vehicle_id?: number
+  vehicle?: Vehicle
+  reference_type?: 'student' | 'auto_passenger'
+  reference_id?: number
+  reference?: any
+  created_at: string
 }
 
 export interface PaginatedResponse<T> {

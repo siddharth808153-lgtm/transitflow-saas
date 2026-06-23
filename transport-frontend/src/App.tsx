@@ -19,6 +19,8 @@ import StudentDetailPage from '@/pages/students/StudentDetailPage';
 import PassengersPage from '@/pages/passengers/PassengersPage';
 import PassengerFormPage from '@/pages/passengers/PassengerFormPage';
 import PassengerDetailPage from '@/pages/passengers/PassengerDetailPage';
+import TransactionsPage from '@/pages/transactions/TransactionsPage';
+import DuesPage from '@/pages/dues/DuesPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
 // Initialize React Query Client
@@ -96,6 +98,12 @@ function App() {
               <Route path="passengers/new" element={<PassengerFormPage />} />
               <Route path="passengers/:id" element={<PassengerDetailPage />} />
               <Route path="passengers/:id/edit" element={<PassengerFormPage />} />
+
+              {/* Transactions routes */}
+              <Route path="transactions" element={<TransactionsPage />} />
+
+              {/* Dues routes */}
+              <Route path="dues" element={<DuesPage />} />
             </Route>
 
             {/* 404 Fallback */}

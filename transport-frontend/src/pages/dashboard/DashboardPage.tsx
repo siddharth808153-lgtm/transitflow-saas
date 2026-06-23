@@ -6,11 +6,15 @@ import {
   Bus, 
   Car, 
   UserCheck, 
-  Users, 
   TrendingUp, 
   ArrowRight,
   ShieldCheck,
-  Plus
+  Plus,
+  AlertCircle,
+  DollarSign,
+  Receipt,
+  FileText,
+  Calendar
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -24,11 +28,12 @@ import {
   Bar
 } from 'recharts';
 import api from '@/api/axios';
-import { VEHICLES, DRIVERS } from '@/api/endpoints';
+import { DUES, TRANSACTIONS } from '@/api/endpoints';
 import PageHeader from '@/components/shared/PageHeader';
 import StatCard from '@/components/shared/StatCard';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import Tag from '@/components/ui/Tag';
 import useAuthStore from '@/store/authStore';
 
 const chartData = [
@@ -44,31 +49,48 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  // Fetch data counts
-  const { data: vehiclesResponse } = useQuery({
-    queryKey: ['vehicles'],
+  // Fetch real summary data from GET /dues/summary
+  const { data: summaryResponse, isLoading: isLoadingSummary } = useQuery({
+    queryKey: ['dues-summary-dashboard'],
     queryFn: async () => {
-      const res = await api.get(VEHICLES.LIST);
+      const res = await api.get(DUES.SUMMARY);
       return res.data;
     },
   });
 
-  const { data: driversResponse } = useQuery({
-    queryKey: ['drivers'],
+  // Fetch recent transactions (last 10)
+  const { data: txResponse, isLoading: isLoadingTx } = useQuery({
+    queryKey: ['recent-transactions'],
     queryFn: async () => {
-      const res = await api.get(DRIVERS.LIST);
+      const res = await api.get(TRANSACTIONS.LIST, { params: { page: 1 } });
       return res.data;
     },
   });
 
-  const vehicles = vehiclesResponse?.data || [];
-  const drivers = driversResponse?.data || [];
+  const summary = summaryResponse?.data || {
+    total_collected_this_month: 0,
+    total_pending_this_month: 0,
+    total_overdue: 0,
+    student_dues_pending: 0,
+    passenger_dues_pending: 0,
+    collection_rate: 0,
+  };
 
-  const totalVehicles = vehicles.length;
-  const activeBuses = vehicles.filter((v: any) => v.type === 'bus' && v.is_active).length;
-  const activeAutos = vehicles.filter((v: any) => v.type === 'auto' && v.is_active).length;
-  const totalDrivers = drivers.length;
-  const activeDrivers = drivers.filter((d: any) => d.is_active).length;
+  const transactionsList = (txResponse?.data?.transactions || []).slice(0, 10);
+  const pendingDuesCount = Number(summary.student_dues_pending || 0) + Number(summary.passenger_dues_pending || 0);
+
+  const getTxTypeBadge = (type: string) => {
+    switch (type) {
+      case 'student_fee':
+        return <Tag className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold">Student Fee</Tag>;
+      case 'auto_daily':
+        return <Tag className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">Auto Daily</Tag>;
+      case 'driver_wage':
+        return <Tag className="bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold">Driver Wage</Tag>;
+      default:
+        return <Tag className="bg-slate-50 text-slate-700 border border-slate-200 text-[10px] font-bold">Other</Tag>;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -83,7 +105,7 @@ export const DashboardPage: React.FC = () => {
             Hello, {user?.name || 'Administrator'}!
           </h1>
           <p className="text-blue-100 text-sm max-w-md">
-            Welcome back to your Transport Management Dashboard. Here is the operational summary of your fleet today.
+            Welcome back to your Transport Management Dashboard. Here is the financial and operational summary for this month.
           </p>
         </div>
         <div className="flex gap-3">
@@ -104,32 +126,60 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Pending Dues Alert Banner */}
+      {pendingDuesCount > 0 && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-2xl flex items-center justify-between shadow-sm animate-pulse">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-5 h-5 text-amber-600" />
+            <span className="text-sm font-semibold">
+              You have {pendingDuesCount} pending dues this month.
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="default"
+            className="text-amber-800 hover:bg-amber-100 border border-amber-200 bg-white shadow-sm"
+            onClick={() => navigate('/dues')}
+          >
+            View Dues
+          </Button>
+        </div>
+      )}
+
       {/* Stats Summary Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
-          title="Fleet Size"
-          value={totalVehicles}
-          icon={<Bus className="w-6 h-6" />}
-          color="blue"
-        />
-        <StatCard
-          title="Active Drivers"
-          value={`${activeDrivers}/${totalDrivers}`}
-          icon={<UserCheck className="w-6 h-6" />}
+          title="Collected This Month"
+          value={isLoadingSummary ? '...' : `₹${Number(summary.total_collected_this_month).toFixed(2)}`}
+          icon={<DollarSign className="w-6 h-6" />}
           color="green"
         />
         <StatCard
-          title="Active School Buses"
-          value={activeBuses}
-          icon={<Bus className="w-6 h-6" />}
-          color="purple"
+          title="Pending This Month"
+          value={isLoadingSummary ? '...' : `₹${Number(summary.total_pending_this_month).toFixed(2)}`}
+          icon={<AlertCircle className="w-6 h-6" />}
+          color="red"
         />
         <StatCard
-          title="Active Auto Rickshaws"
-          value={activeAutos}
-          icon={<Car className="w-6 h-6" />}
+          title="Overdue (Previous Months)"
+          value={isLoadingSummary ? '...' : `₹${Number(summary.total_overdue).toFixed(2)}`}
+          icon={<Calendar className="w-6 h-6" />}
           color="orange"
         />
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-slate-500">Collection Rate</span>
+            <span className="text-xl font-black text-slate-800 dark:text-white">
+              {isLoadingSummary ? '...' : `${summary.collection_rate}%`}
+            </span>
+          </div>
+          <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full mt-4 overflow-hidden">
+            <div
+              className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500"
+              style={{ width: `${summary.collection_rate}%` }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Charts section */}
@@ -185,51 +235,114 @@ export const DashboardPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Shortcuts/Activity Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="border border-slate-200 dark:border-slate-800 rounded-2xl bg-white p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 className="font-bold text-slate-900 text-sm">Quick Shortcuts</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Frequent actions and operations</p>
+      {/* Recent Transactions & Operations */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Transactions List */}
+        <Card className="lg:col-span-2 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Recent Transactions</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Latest collections logged in the system</p>
+            </div>
+            <Button
+              size="xs"
+              variant="default"
+              className="text-blue-600 hover:bg-blue-50"
+              onClick={() => navigate('/transactions')}
+            >
+              View All
+            </Button>
           </div>
-          <div className="mt-4 space-y-2">
-            <button 
-              onClick={() => navigate('/vehicles')}
-              className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 border border-slate-100 text-slate-700 text-sm font-semibold transition-colors group"
-            >
-              <span>View Active Vehicles List</span>
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
-            </button>
-            <button 
-              onClick={() => navigate('/drivers')}
-              className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 border border-slate-100 text-slate-700 text-sm font-semibold transition-colors group"
-            >
-              <span>View Registered Drivers List</span>
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
-            </button>
+          <div className="overflow-x-auto">
+            {isLoadingTx ? (
+              <div className="text-center py-6 text-sm text-slate-400">Loading transactions...</div>
+            ) : transactionsList.length === 0 ? (
+              <div className="text-center py-6 text-sm text-slate-400">No transactions recorded yet.</div>
+            ) : (
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider">
+                    <th className="py-2.5 font-bold">Type</th>
+                    <th className="py-2.5 font-bold">Period</th>
+                    <th className="py-2.5 font-bold">Amount</th>
+                    <th className="py-2.5 font-bold">Method</th>
+                    <th className="py-2.5 font-bold">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 font-medium">
+                  {transactionsList.map((tx: any) => (
+                    <tr key={tx.id} className="text-slate-700 hover:bg-slate-50/50">
+                      <td className="py-3">{getTxTypeBadge(tx.transaction_type)}</td>
+                      <td className="py-3 text-slate-600">
+                        {tx.payment_for_month
+                          ? new Date(tx.payment_for_month).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+                          : tx.payment_for_date
+                          ? new Date(tx.payment_for_date).toLocaleDateString()
+                          : '-'}
+                      </td>
+                      <td className="py-3 font-bold text-emerald-600">₹{Number(tx.amount).toFixed(2)}</td>
+                      <td className="py-3 uppercase text-[10px] font-bold text-slate-500">{tx.payment_method}</td>
+                      <td className="py-3 text-slate-400">{new Date(tx.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </Card>
 
-        <Card className="border border-slate-200 dark:border-slate-800 rounded-2xl bg-white p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 className="font-bold text-slate-900 text-sm">System Operations</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Overview of database settings and integrations</p>
-          </div>
-          <div className="mt-4 text-xs text-slate-500 space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <div className="flex justify-between">
-              <span>Sanctum Authentication:</span>
-              <span className="font-semibold text-emerald-600">Connected</span>
+        {/* Quick Shortcuts & System status */}
+        <div className="space-y-6">
+          <Card className="border border-slate-200 dark:border-slate-800 rounded-2xl bg-white p-6 shadow-sm">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Quick Shortcuts</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Frequent actions and operations</p>
             </div>
-            <div className="flex justify-between">
-              <span>Baileys WhatsApp Gateway:</span>
-              <span className="font-semibold text-slate-600">Initialized (Mock)</span>
+            <div className="mt-4 space-y-2">
+              <button 
+                onClick={() => navigate('/transactions')}
+                className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 border border-slate-100 text-slate-700 text-sm font-semibold transition-colors group"
+              >
+                <span className="flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-blue-500" />
+                  View Transactions Log
+                </span>
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+              </button>
+              <button 
+                onClick={() => navigate('/dues')}
+                className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 border border-slate-100 text-slate-700 text-sm font-semibold transition-colors group"
+              >
+                <span className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-emerald-500" />
+                  Dues & Collections
+                </span>
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+              </button>
             </div>
-            <div className="flex justify-between">
-              <span>Database Engine:</span>
-              <span className="font-semibold text-slate-600">MySQL</span>
+          </Card>
+
+          <Card className="border border-slate-200 dark:border-slate-800 rounded-2xl bg-white p-6 shadow-sm">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">System Operations</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Overview of database settings and integrations</p>
             </div>
-          </div>
-        </Card>
+            <div className="mt-4 text-xs text-slate-500 space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
+              <div className="flex justify-between">
+                <span>Sanctum Authentication:</span>
+                <span className="font-semibold text-emerald-600">Connected</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Baileys WhatsApp Gateway:</span>
+                <span className="font-semibold text-slate-600">Initialized (Mock)</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Database Engine:</span>
+                <span className="font-semibold text-slate-600">MySQL</span>
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   );

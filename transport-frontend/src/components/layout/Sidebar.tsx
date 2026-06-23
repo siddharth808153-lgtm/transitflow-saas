@@ -12,7 +12,8 @@ import {
   LogOut, 
   Menu,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CreditCard
 } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import Avatar from '@/components/ui/Avatar';
@@ -29,7 +30,8 @@ export const Sidebar: React.FC = () => {
     { label: 'Drivers', path: '/drivers', icon: UserCheck },
     { label: 'Students', path: '/students', icon: GraduationCap },
     { label: 'Passengers', path: '/passengers', icon: Users },
-    { label: 'Transactions', path: '/transactions', icon: Receipt, isPlaceholder: true },
+    { label: 'Transactions', path: '/transactions', icon: Receipt },
+    { label: 'Dues', path: '/dues', icon: CreditCard },
     { label: 'Settings', path: '/settings', icon: Settings, isPlaceholder: true },
   ];
 

@@ -50,3 +50,17 @@ export const PASSENGERS = {
   DETAIL: (id: number | string) => `/passengers/${id}`,
   DUES: (id: number | string) => `/passengers/${id}/dues`,
 };
+
+export const TRANSACTIONS = {
+  LIST: '/transactions',
+  CREATE: '/transactions',
+  DETAIL: (id: number | string) => `/transactions/${id}`,
+};
+
+export const DUES = {
+  LIST: '/dues',
+  SUMMARY: '/dues/summary',
+  GENERATE_MONTHLY: '/dues/generate-monthly',
+  GENERATE_DAILY: '/dues/generate-daily',
+  MARK_PAID: (id: number | string) => `/dues/${id}/mark-paid`,
+};

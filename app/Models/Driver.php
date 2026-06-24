@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Driver extends Model
@@ -71,6 +72,14 @@ class Driver extends Model
     public function wageAdjustments(): HasMany
     {
         return $this->hasMany(DriverWageAdjustment::class);
+    }
+
+    /**
+     * All transactions linked to this driver.
+     */
+    public function transactions(): MorphMany
+    {
+        return $this->morphMany(Transaction::class, 'reference');
     }
 
     // ─── Scopes ─────────────────────────────────────────────────────────

@@ -43,7 +43,12 @@ export const DriverDetailPage: React.FC = () => {
   });
 
   const driver = driverResponse?.data;
-  const logs = driver?.logs || []; // assuming logs are returned with driver details
+  const logs = driver?.driver_assignments || [];
+  const leaves = driver?.leaves || [];
+  const adjustments = driver?.wage_adjustments || [];
+  const transactions = driver?.transactions || [];
+
+  const [activeTab, setActiveTab] = useState<'assignments' | 'leaves' | 'payments' | 'adjustments'>('assignments');
 
   // Relieve Mutation
   const relieveMutation = useMutation({
@@ -95,19 +100,110 @@ export const DriverDetailPage: React.FC = () => {
       render: (_: any, row: any) => <span className="font-semibold text-slate-800">{row.vehicle?.name || 'Unknown'}</span>
     },
     {
-      key: 'assigned_at',
+      key: 'assigned_date',
       label: 'Assigned Date',
       render: (val: string) => <span>{val ? new Date(val).toLocaleDateString() : '-'}</span>
     },
     {
-      key: 'relieved_at',
+      key: 'relieved_date',
       label: 'Relieved Date',
       render: (val: string) => <span>{val ? new Date(val).toLocaleDateString() : <Tag className="bg-emerald-50 text-emerald-700">Current</Tag>}</span>
     },
     {
-      key: 'reason',
+      key: 'reason_for_change',
       label: 'Reason for Change',
       render: (val: string) => <span>{val || '-'}</span>
+    }
+  ];
+
+  const leaveColumns = [
+    {
+      key: 'date',
+      label: 'Leave Date',
+      render: (val: string) => <span>{val ? new Date(val).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '-'}</span>
+    },
+    {
+      key: 'leave_type',
+      label: 'Type',
+      render: (val: string) => (
+        <Tag className={`text-[10px] font-bold px-2 py-0.5 border ${ 
+          val === 'full' 
+            ? 'bg-rose-50 text-rose-700 border-rose-200' 
+            : 'bg-orange-50 text-orange-700 border-orange-200'
+        }`}>
+          {val === 'full' ? 'Full Day' : 'Half Day'}
+        </Tag>
+      )
+    },
+    {
+      key: 'notes',
+      label: 'Notes',
+      render: (val: string) => <span className="text-slate-500">{val || '-'}</span>
+    }
+  ];
+
+  const adjustmentColumns = [
+    {
+      key: 'month',
+      label: 'Month',
+      render: (val: string) => <span className="font-semibold">{val}</span>
+    },
+    {
+      key: 'adjustment_amount',
+      label: 'Amount',
+      render: (val: string) => (
+        <span className={`font-semibold ${parseFloat(val) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+          {parseFloat(val) >= 0 ? '+' : ''}₹{parseFloat(val).toFixed(2)}
+        </span>
+      )
+    },
+    {
+      key: 'reason',
+      label: 'Reason / Description',
+      render: (val: string) => <span className="text-slate-500">{val || '-'}</span>
+    }
+  ];
+
+  const transactionColumns = [
+    {
+      key: 'payment_for_date',
+      label: 'Date',
+      render: (val: string, row: any) => {
+        const dateToShow = val || row.created_at;
+        return <span>{dateToShow ? new Date(dateToShow).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '-'}</span>;
+      }
+    },
+    {
+      key: 'transaction_type',
+      label: 'Transaction Type',
+      render: (val: string) => {
+        if (val === 'driver_wage') {
+          return <Tag className="bg-blue-50 text-blue-700 border-blue-200">Wage Paid</Tag>;
+        }
+        if (val === 'auto_daily') {
+          return <Tag className="bg-amber-50 text-amber-700 border-amber-200">Daily Rent Paid</Tag>;
+        }
+        return <Tag className="bg-slate-50 text-slate-700 border-slate-200">{val}</Tag>;
+      }
+    },
+    {
+      key: 'payment_method',
+      label: 'Method',
+      render: (val: string) => <span className="capitalize font-medium">{val}</span>
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      render: (val: string, row: any) => (
+        <span className={`font-bold ${row.transaction_type === 'driver_wage' ? 'text-rose-600' : 'text-emerald-600'}`}>
+          {row.transaction_type === 'driver_wage' ? '-' : '+'}₹{parseFloat(val).toFixed(2)}
+        </span>
+      )
+    },
+    {
+      key: 'notes',
+      label: 'Notes',
+      render: (val: string) => <span className="text-slate-500 text-xs">{val || '-'}</span>
     }
   ];
 
@@ -238,15 +334,61 @@ export const DriverDetailPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Assignment History */}
+      {/* Tabs / Detailed Activity Log */}
       <div className="space-y-4">
-        <h3 className="text-lg font-bold text-slate-900">Assignment History</h3>
+        <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
+          {[
+            { id: 'assignments', label: 'Assignment History' },
+            { id: 'leaves', label: 'Leaves History' },
+            { id: 'adjustments', label: 'Wage Adjustments' },
+            { id: 'payments', label: 'Payments & Rent Feed' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`py-3 px-6 text-sm font-bold border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-500'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         <Card className="border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm bg-white p-2">
-          <DataTable
-            columns={logColumns}
-            data={logs}
-            emptyMessage="No past vehicle assignments recorded."
-          />
+          {activeTab === 'assignments' && (
+            <DataTable
+              columns={logColumns}
+              data={logs}
+              emptyMessage="No past vehicle assignments recorded."
+            />
+          )}
+
+          {activeTab === 'leaves' && (
+            <DataTable
+              columns={leaveColumns}
+              data={leaves}
+              emptyMessage="No leaves recorded for this driver."
+            />
+          )}
+
+          {activeTab === 'adjustments' && (
+            <DataTable
+              columns={adjustmentColumns}
+              data={adjustments}
+              emptyMessage="No wage adjustments recorded for this driver."
+            />
+          )}
+
+          {activeTab === 'payments' && (
+            <DataTable
+              columns={transactionColumns}
+              data={transactions}
+              emptyMessage="No payments or rent transactions recorded for this driver."
+            />
+          )}
         </Card>
       </div>
 

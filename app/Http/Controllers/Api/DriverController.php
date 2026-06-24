@@ -103,9 +103,20 @@ class DriverController extends Controller
 
         $driver = $query->findOrFail($id);
 
-        $driver->load(['driverAssignments' => function ($q) {
-            $q->with('vehicle')->orderBy('assigned_date', 'desc');
-        }]);
+        $driver->load([
+            'driverAssignments' => function ($q) {
+                $q->with('vehicle')->orderBy('assigned_date', 'desc');
+            },
+            'leaves' => function ($q) {
+                $q->orderBy('date', 'desc');
+            },
+            'wageAdjustments' => function ($q) {
+                $q->orderBy('month', 'desc');
+            },
+            'transactions' => function ($q) {
+                $q->orderBy('payment_for_date', 'desc')->orderBy('created_at', 'desc');
+            }
+        ]);
 
         return $this->successResponse($driver, 'Driver details retrieved successfully');
     }

@@ -29,6 +29,11 @@ export const DRIVERS = {
   DETAIL: (id: string | number) => `/drivers/${id}`,
   ASSIGN: (id: string | number) => `/drivers/${id}/assign`,
   RELIEVE: (id: string | number) => `/drivers/${id}/relieve`,
+  LEAVES_LIST: (id: string | number) => `/drivers/${id}/leaves`,
+  LEAVE_CREATE: '/drivers/leaves',
+  LEAVE_DELETE: (id: string | number) => `/drivers/leaves/${id}`,
+  ADJUSTMENTS_LIST: (id: string | number) => `/drivers/${id}/wage-adjustments`,
+  ADJUSTMENT_CREATE: '/drivers/wage-adjustments',
 };
 
 export const STUDENTS = {

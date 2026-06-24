@@ -13,6 +13,8 @@ use App\Http\Controllers\Api\SuperAdminController;
 use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\UserPortalController;
 use App\Http\Controllers\Api\ReportsController;
+use App\Http\Controllers\Api\DriverLeaveController;
+use App\Http\Controllers\Api\DriverWageAdjustmentController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -78,6 +80,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('drivers', DriverController::class);
         Route::post('/drivers/{id}/assign', [DriverController::class, 'assign']);
         Route::post('/drivers/{id}/relieve', [DriverController::class, 'relieve']);
+        Route::get('/drivers/{driver_id}/leaves', [DriverLeaveController::class, 'getLeaves']);
+        Route::post('/drivers/leaves', [DriverLeaveController::class, 'store']);
+        Route::delete('/drivers/leaves/{id}', [DriverLeaveController::class, 'destroy']);
+        Route::get('/drivers/{driver_id}/wage-adjustments', [DriverWageAdjustmentController::class, 'getAdjustments']);
+        Route::post('/drivers/wage-adjustments', [DriverWageAdjustmentController::class, 'store']);
 
         // Students
         Route::apiResource('students', StudentController::class);

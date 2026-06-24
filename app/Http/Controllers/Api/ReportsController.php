@@ -476,11 +476,36 @@ class ReportsController extends Controller
                 }
             }
 
+            // Calculate leaves for this driver in this month
+            $leaves = \App\Models\DriverLeave::where('driver_id', $driver->id)
+                ->whereYear('date', $year)
+                ->whereMonth('date', $monthNum)
+                ->get();
+
+            $leaveDays = 0.0;
+            foreach ($leaves as $leave) {
+                if ($leave->leave_type === 'full') {
+                    $leaveDays += 1.0;
+                } elseif ($leave->leave_type === 'half') {
+                    $leaveDays += 0.5;
+                }
+            }
+
+            $workingDays = max(0.0, $workingDays - $leaveDays);
+
+            // Fetch wage adjustments for this driver in this month
+            $adjustment = \App\Models\DriverWageAdjustment::where('driver_id', $driver->id)
+                ->where('month', $month)
+                ->first();
+
+            $adjustmentAmount = $adjustment ? (float)$adjustment->adjustment_amount : 0.0;
+            $adjustmentReason = $adjustment ? $adjustment->reason : null;
+
             // Wage due
             if ($wageType === 'monthly') {
-                $wageDue = (float)($driver->daily_wage * 26);
+                $wageDue = (float)($driver->daily_wage * 26) + $adjustmentAmount;
             } else {
-                $wageDue = (float)($driver->daily_wage * $workingDays);
+                $wageDue = (float)($driver->daily_wage * $workingDays) + $adjustmentAmount;
             }
 
             // Wage paid
@@ -506,6 +531,9 @@ class ReportsController extends Controller
                 'vehicle_name'            => $vehicleName ?? 'Unassigned',
                 'daily_wage'              => (float)$driver->daily_wage,
                 'working_days_this_month' => $workingDays,
+                'leave_days'              => $leaveDays,
+                'adjustment_amount'       => $adjustmentAmount,
+                'adjustment_reason'       => $adjustmentReason,
                 'total_wage_due'          => (float)$wageDue,
                 'wage_paid'               => (float)$wagePaid,
                 'wage_pending'            => (float)$wagePending,

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, User, Phone, Clipboard, Bus, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Search, User, Phone, Clipboard, Bus, Trash2, CheckCircle, XCircle, Calendar, AlertCircle } from 'lucide-react';
 import api from '@/api/axios';
 import { DRIVERS, VEHICLES } from '@/api/endpoints';
 import PageHeader from '@/components/shared/PageHeader';
@@ -27,6 +27,18 @@ export const DriversPage: React.FC = () => {
   const [deleteDriverId, setDeleteDriverId] = useState<string | number | null>(null);
   const [assignDriverId, setAssignDriverId] = useState<string | number | null>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | number>('');
+  const [leavesDriverId, setLeavesDriverId] = useState<string | number | null>(null);
+  const [adjustmentDriverId, setAdjustmentDriverId] = useState<string | number | null>(null);
+
+  // Leaves Form states
+  const [leaveDate, setLeaveDate] = useState('');
+  const [leaveType, setLeaveType] = useState<'full' | 'half'>('full');
+  const [leaveNotes, setLeaveNotes] = useState('');
+
+  // Adjustment Form states
+  const [adjMonth, setAdjMonth] = useState('');
+  const [adjAmount, setAdjAmount] = useState('');
+  const [adjReason, setAdjReason] = useState('');
 
   // Fetch Drivers
   const { data: driversResponse, isLoading } = useQuery({
@@ -107,6 +119,120 @@ export const DriversPage: React.FC = () => {
     assignMutation.mutate({ driverId: assignDriverId, vehicleId: selectedVehicleId });
   };
 
+  // Queries and mutations for Driver Leaves
+  const { data: leavesResponse, refetch: refetchLeaves } = useQuery({
+    queryKey: ['driver-leaves', leavesDriverId],
+    queryFn: async () => {
+      const res = await api.get(DRIVERS.LEAVES_LIST(leavesDriverId!));
+      return res.data;
+    },
+    enabled: leavesDriverId !== null,
+  });
+  const leaves = leavesResponse?.data || [];
+
+  const logLeaveMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await api.post(DRIVERS.LEAVE_CREATE, payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      refetchLeaves();
+      setLeaveDate('');
+      setLeaveNotes('');
+      toast.push(
+        <Notification type="success" title="Leave Logged">
+          Driver leave recorded successfully.
+        </Notification>
+      );
+    },
+    onError: (err: any) => {
+      toast.push(
+        <Notification type="danger" title="Error">
+          {err.response?.data?.message || 'Failed to log leave.'}
+        </Notification>
+      );
+    }
+  });
+
+  const deleteLeaveMutation = useMutation({
+    mutationFn: async (id: number | string) => {
+      const res = await api.delete(DRIVERS.LEAVE_DELETE(id));
+      return res.data;
+    },
+    onSuccess: () => {
+      refetchLeaves();
+      toast.push(
+        <Notification type="success" title="Leave Deleted">
+          Leave record removed successfully.
+        </Notification>
+      );
+    },
+    onError: (err: any) => {
+      toast.push(
+        <Notification type="danger" title="Error">
+          {err.response?.data?.message || 'Failed to delete leave.'}
+        </Notification>
+      );
+    }
+  });
+
+  const handleLeaveSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!leavesDriverId || !leaveDate || !leaveType) return;
+    logLeaveMutation.mutate({
+      driver_id: leavesDriverId,
+      date: leaveDate,
+      leave_type: leaveType,
+      notes: leaveNotes,
+    });
+  };
+
+  // Queries and mutations for Driver Wage Adjustments
+  const { data: adjustmentsResponse, refetch: refetchAdjustments } = useQuery({
+    queryKey: ['driver-adjustments', adjustmentDriverId],
+    queryFn: async () => {
+      const res = await api.get(DRIVERS.ADJUSTMENTS_LIST(adjustmentDriverId!));
+      return res.data;
+    },
+    enabled: adjustmentDriverId !== null,
+  });
+  const adjustments = adjustmentsResponse?.data || [];
+
+  const logAdjustmentMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await api.post(DRIVERS.ADJUSTMENT_CREATE, payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      refetchAdjustments();
+      setAdjAmount('');
+      setAdjReason('');
+      toast.push(
+        <Notification type="success" title="Adjustment Recorded">
+          Driver wage adjustment saved successfully.
+        </Notification>
+      );
+    },
+    onError: (err: any) => {
+      toast.push(
+        <Notification type="danger" title="Error">
+          {err.response?.data?.message || 'Failed to save adjustment.'}
+        </Notification>
+      );
+    }
+  });
+
+  const handleAdjustmentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adjustmentDriverId || !adjMonth || !adjAmount) return;
+    logAdjustmentMutation.mutate({
+      driver_id: adjustmentDriverId,
+      month: adjMonth,
+      adjustment_amount: parseFloat(adjAmount),
+      reason: adjReason,
+    });
+  };
+
   // Filter lists
   const filteredDrivers = React.useMemo(() => {
     let list = drivers;
@@ -184,11 +310,11 @@ export const DriversPage: React.FC = () => {
       key: 'actions',
       label: 'Actions',
       render: (_: any, row: any) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button 
             size="xs" 
             variant="default"
-            className="hover:text-blue-600"
+            className="hover:text-blue-600 font-semibold px-2 py-1"
             onClick={() => navigate(`/drivers/${row.id}`)}
           >
             View
@@ -196,7 +322,7 @@ export const DriversPage: React.FC = () => {
           <Button 
             size="xs" 
             variant="default"
-            className="hover:text-blue-600"
+            className="hover:text-blue-600 font-semibold px-2 py-1"
             onClick={() => navigate(`/drivers/${row.id}/edit`)}
           >
             Edit
@@ -205,7 +331,7 @@ export const DriversPage: React.FC = () => {
             <Button 
               size="xs" 
               variant="default"
-              className="text-blue-600 hover:bg-blue-50"
+              className="text-blue-600 hover:bg-blue-50 font-semibold px-2 py-1"
               onClick={() => setAssignDriverId(row.id)}
             >
               Assign Vehicle
@@ -215,7 +341,27 @@ export const DriversPage: React.FC = () => {
             <Button 
               size="xs" 
               variant="default"
-              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+              className="text-amber-600 hover:bg-amber-50 font-semibold px-2 py-1"
+              onClick={() => setLeavesDriverId(row.id)}
+            >
+              Leaves
+            </Button>
+          )}
+          {row.is_active && (
+            <Button 
+              size="xs" 
+              variant="default"
+              className="text-indigo-600 hover:bg-indigo-50 font-semibold px-2 py-1"
+              onClick={() => setAdjustmentDriverId(row.id)}
+            >
+              Adjust Wage
+            </Button>
+          )}
+          {row.is_active && (
+            <Button 
+              size="xs" 
+              variant="default"
+              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-semibold px-2 py-1"
               onClick={() => setDeleteDriverId(row.id)}
             >
               Delete
@@ -346,6 +492,190 @@ export const DriversPage: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Dialog>
+
+      {/* Driver Leaves Modal */}
+      <Dialog
+        isOpen={leavesDriverId !== null}
+        onClose={() => {
+          setLeavesDriverId(null);
+          setLeaveDate('');
+          setLeaveNotes('');
+        }}
+        contentClassName="rounded-2xl max-w-lg w-full"
+      >
+        <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+          <Calendar className="w-5 h-5 text-amber-600" />
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Manage Driver Leaves</h3>
+        </div>
+
+        {/* Add Leave Form */}
+        <form onSubmit={handleLeaveSubmit} className="space-y-4 mb-6 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Log New Leave</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Date</label>
+              <Input
+                type="date"
+                value={leaveDate}
+                onChange={(e) => setLeaveDate(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Leave Type</label>
+              <select
+                value={leaveType}
+                onChange={(e) => setLeaveType(e.target.value as 'full' | 'half')}
+                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="full">Full Day Leave</option>
+                <option value="half">Half Day Leave</option>
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Notes (Optional)</label>
+            <Input
+              placeholder="e.g. Personal emergency, sick leave..."
+              value={leaveNotes}
+              onChange={(e) => setLeaveNotes(e.target.value)}
+              className="rounded-xl"
+            />
+          </div>
+          <Button
+            size="sm"
+            variant="solid"
+            className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl w-full flex items-center justify-center font-bold"
+            type="submit"
+            disabled={logLeaveMutation.isPending}
+          >
+            {logLeaveMutation.isPending ? 'Saving...' : 'Add Leave'}
+          </Button>
+        </form>
+
+        {/* Leaves List */}
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Leave History</h4>
+          <div className="max-h-56 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-100 dark:divide-slate-800">
+            {leaves.length === 0 ? (
+              <p className="text-xs text-slate-400 dark:text-slate-500 italic text-center py-4">No leaves recorded yet.</p>
+            ) : (
+              leaves.map((l: any) => (
+                <div key={l.id} className="flex items-center justify-between pt-2.5 first:pt-0">
+                  <div>
+                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      {new Date(l.date).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                    </span>
+                    <Tag className={`ml-2 text-[10px] font-bold px-2 py-0.5 border ${ 
+                      l.leave_type === 'full' 
+                        ? 'bg-rose-50 text-rose-700 border-rose-200' 
+                        : 'bg-orange-50 text-orange-700 border-orange-200'
+                    }`}>
+                      {l.leave_type === 'full' ? 'Full Day' : 'Half Day'}
+                    </Tag>
+                    {l.notes && <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{l.notes}</p>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => deleteLeaveMutation.mutate(l.id)}
+                    className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    disabled={deleteLeaveMutation.isPending}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Driver Wage Adjustment Modal */}
+      <Dialog
+        isOpen={adjustmentDriverId !== null}
+        onClose={() => {
+          setAdjustmentDriverId(null);
+          setAdjMonth('');
+          setAdjAmount('');
+          setAdjReason('');
+        }}
+        contentClassName="rounded-2xl max-w-lg w-full"
+      >
+        <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+          <AlertCircle className="w-5 h-5 text-indigo-600" />
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Adjust Driver Wage</h3>
+        </div>
+
+        {/* Add Adjustment Form */}
+        <form onSubmit={handleAdjustmentSubmit} className="space-y-4 mb-6 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">New Adjustment</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Month</label>
+              <Input
+                type="month"
+                value={adjMonth}
+                onChange={(e) => setAdjMonth(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Amount (₹, negative for penalty)</label>
+              <Input
+                type="number"
+                placeholder="e.g. 500 or -200"
+                value={adjAmount}
+                onChange={(e) => setAdjAmount(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Reason / Note</label>
+            <Input
+              placeholder="e.g. Attendance bonus, vehicle damage penalty..."
+              value={adjReason}
+              onChange={(e) => setAdjReason(e.target.value)}
+              className="rounded-xl"
+            />
+          </div>
+          <Button
+            size="sm"
+            variant="solid"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl w-full flex items-center justify-center font-bold"
+            type="submit"
+            disabled={logAdjustmentMutation.isPending}
+          >\n            {logAdjustmentMutation.isPending ? 'Saving...' : 'Save Adjustment'}\n          </Button>
+        </form>
+
+        {/* Adjustments List */}
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Adjustment History</h4>
+          <div className="max-h-56 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-100 dark:divide-slate-800">
+            {adjustments.length === 0 ? (
+              <p className="text-xs text-slate-400 dark:text-slate-500 italic text-center py-4">No adjustments recorded yet.</p>
+            ) : (
+              adjustments.map((a: any) => (
+                <div key={a.id} className="flex items-center justify-between pt-2.5 first:pt-0">
+                  <div>
+                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      {a.month}
+                    </span>
+                    <Tag className={`ml-2 text-[10px] font-bold px-2 py-0.5 border ${ 
+                      parseFloat(a.adjustment_amount) >= 0 
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                    }`}>
+                      {parseFloat(a.adjustment_amount) >= 0 ? '+' : ''}₹{parseFloat(a.adjustment_amount).toFixed(2)}
+                    </Tag>
+                    {a.reason && <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{a.reason}</p>}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </Dialog>
     </div>
   );

@@ -23,6 +23,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Tag from '@/components/ui/Tag';
+import Tooltip from '@/components/ui/Tooltip';
 
 export const ReportsPage: React.FC = () => {
   const [activeReport, setActiveReport] = useState<'collection' | 'dues' | 'vehicle' | 'driver'>('collection');
@@ -535,6 +536,8 @@ export const ReportsPage: React.FC = () => {
                       <th>Vehicle Name</th>
                       <th>Daily Wage Rate</th>
                       <th>Working Days</th>
+                      <th>Leaves (Days)</th>
+                      <th>Adjustment</th>
                       <th>Total Wage Due</th>
                       <th>Wage Paid</th>
                       <th>Wage Pending</th>
@@ -549,6 +552,24 @@ export const ReportsPage: React.FC = () => {
                         <td>{d.vehicle_name}</td>
                         <td>₹{d.daily_wage}</td>
                         <td>{d.working_days_this_month} days</td>
+                        <td>{d.leave_days || 0} days</td>
+                        <td>
+                          {d.adjustment_amount !== 0 ? (
+                            d.adjustment_reason ? (
+                              <Tooltip title={d.adjustment_reason}>
+                                <span className={`cursor-pointer underline decoration-dotted font-semibold ${d.adjustment_amount > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                  {d.adjustment_amount > 0 ? '+' : ''}₹{d.adjustment_amount}
+                                </span>
+                              </Tooltip>
+                            ) : (
+                              <span className={`font-semibold ${d.adjustment_amount > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                {d.adjustment_amount > 0 ? '+' : ''}₹{d.adjustment_amount}
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-slate-400">₹0</span>
+                          )}
+                        </td>
                         <td className="font-semibold text-slate-800">₹{d.total_wage_due}</td>
                         <td className="text-emerald-600 font-semibold">₹{d.wage_paid}</td>
                         <td className="text-amber-600 font-semibold">₹{d.wage_pending}</td>
@@ -562,7 +583,7 @@ export const ReportsPage: React.FC = () => {
                       </tr>
                     ))}
                     <tr className="footer-row">
-                      <td colSpan={5}>Totals</td>
+                      <td colSpan={7}>Totals</td>
                       <td>₹{reportData.total_wage_due.toLocaleString()}</td>
                       <td>₹{reportData.total_wage_paid.toLocaleString()}</td>
                       <td>₹{reportData.total_wage_pending.toLocaleString()}</td>

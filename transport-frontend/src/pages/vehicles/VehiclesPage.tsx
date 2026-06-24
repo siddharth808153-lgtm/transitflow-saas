@@ -30,7 +30,8 @@ export const VehiclesPage: React.FC = () => {
     },
   });
 
-  const vehicles = response?.data || [];
+  const vehiclesData = response?.data?.vehicles || [];
+  const vehicles = Array.isArray(vehiclesData) ? vehiclesData : Object.values(vehiclesData);
 
   // Deactivate/Delete Mutation
   const deactivateMutation = useMutation({

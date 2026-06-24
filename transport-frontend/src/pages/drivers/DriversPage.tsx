@@ -37,7 +37,8 @@ export const DriversPage: React.FC = () => {
     },
   });
 
-  const drivers = driversResponse?.data || [];
+  const driversData = driversResponse?.data?.drivers || [];
+  const drivers = Array.isArray(driversData) ? driversData : Object.values(driversData);
 
   // Fetch Vehicles for assignment
   const { data: vehiclesResponse } = useQuery({
@@ -49,7 +50,8 @@ export const DriversPage: React.FC = () => {
     enabled: assignDriverId !== null,
   });
 
-  const vehicles = vehiclesResponse?.data || [];
+  const vehiclesData = vehiclesResponse?.data?.vehicles || [];
+  const vehicles = Array.isArray(vehiclesData) ? vehiclesData : Object.values(vehiclesData);
   const unassignedVehicles = vehicles.filter((v: any) => v.is_active && !v.current_driver);
 
   // Delete/Deactivate Driver Mutation

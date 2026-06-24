@@ -70,8 +70,12 @@ export const StudentFormPage: React.FC = () => {
     },
   });
 
-  const parents = parentsResponse?.data || [];
-  const buses = (busesResponse?.data || []).filter((v: any) => v.type === 'bus' && v.is_active);
+  const parentsData = parentsResponse?.data || [];
+  const parents = Array.isArray(parentsData) ? parentsData : Object.values(parentsData);
+
+  const busesData = busesResponse?.data?.vehicles || [];
+  const busesList = Array.isArray(busesData) ? busesData : Object.values(busesData);
+  const buses = busesList.filter((v: any) => v.type === 'bus' && v.is_active);
 
   // Populate form fields on edit load
   useEffect(() => {
@@ -125,13 +129,13 @@ export const StudentFormPage: React.FC = () => {
     mutationFn: async (payload: any) => {
       return await api.post(AUTH.CREATE_USER, payload);
     },
-    onSuccess: (res) => {
+    onSuccess: (res, variables) => {
       queryClient.invalidateQueries({ queryKey: ['parents'] });
       const parentUser = res.data?.data;
       if (parentUser?.id) {
         setParentId(parentUser.id);
       }
-      setCreatedPasswordDisplay(parentPassword);
+      setCreatedPasswordDisplay(variables.password);
       toast.push(
         <Notification type="success" title="Parent Created">
           Parent account created and selected automatically.
@@ -157,7 +161,11 @@ export const StudentFormPage: React.FC = () => {
       return;
     }
     // Auto-generate password
-    const generatedPassword = Math.random().toString(36).substring(2, 10);
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
+    let generatedPassword = '';
+    for (let i = 0; i < 10; i++) {
+      generatedPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
     setParentPassword(generatedPassword);
     
     createParentMutation.mutate({

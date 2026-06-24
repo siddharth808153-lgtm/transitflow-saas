@@ -58,7 +58,7 @@ export const PassengerFormPage: React.FC = () => {
     },
   });
 
-  const autos = (vehiclesResponse?.data || []).filter((v: any) => v.type === 'auto' && v.is_active);
+  const autos = (vehiclesResponse?.data?.vehicles || []).filter((v: any) => v.type === 'auto' && v.is_active);
   const appUsers = usersResponse?.data || [];
 
   // Populate form fields on edit load

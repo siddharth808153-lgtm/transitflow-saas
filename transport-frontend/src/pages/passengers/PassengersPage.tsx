@@ -43,8 +43,12 @@ export const PassengersPage: React.FC = () => {
     },
   });
 
-  const passengers = passengersResponse?.data || [];
-  const autos = (vehiclesResponse?.data || []).filter((v: any) => v.type === 'auto');
+  const passengersData = passengersResponse?.data?.passengers || [];
+  const passengers = Array.isArray(passengersData) ? passengersData : Object.values(passengersData);
+  
+  const vehiclesData = vehiclesResponse?.data?.vehicles || [];
+  const vehiclesList = Array.isArray(vehiclesData) ? vehiclesData : Object.values(vehiclesData);
+  const autos = vehiclesList.filter((v: any) => v.type === 'auto');
 
   // Deactivate/Delete Passenger Mutation
   const deleteMutation = useMutation({

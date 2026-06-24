@@ -56,11 +56,14 @@ export const StudentsPage: React.FC = () => {
   });
 
   const studentsData = studentsResponse?.data || {};
-  const studentsList = studentsData.data || [];
+  const studentsListRaw = studentsData.data || [];
+  const studentsList = Array.isArray(studentsListRaw) ? studentsListRaw : Object.values(studentsListRaw);
   const totalRecords = studentsData.total || 0;
   const pageSize = studentsData.per_page || 10;
 
-  const buses = (vehiclesResponse?.data || []).filter((v: any) => v.type === 'bus');
+  const vehiclesData = vehiclesResponse?.data?.vehicles || [];
+  const vehiclesList = Array.isArray(vehiclesData) ? vehiclesData : Object.values(vehiclesData);
+  const buses = vehiclesList.filter((v: any) => v.type === 'bus');
 
   // Delete Student Mutation
   const deleteMutation = useMutation({

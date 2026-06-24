@@ -44,7 +44,8 @@ export const ReportsPage: React.FC = () => {
       return res.data;
     },
   });
-  const vehicles = vehiclesResponse?.data || [];
+  const vehiclesData = vehiclesResponse?.data?.vehicles || [];
+  const vehicles = Array.isArray(vehiclesData) ? vehiclesData : Object.values(vehiclesData);
 
   // Generate report handler
   const handleGenerateReport = async () => {

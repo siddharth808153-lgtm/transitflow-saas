@@ -64,9 +64,10 @@ class SendWelcomeWhatsappJob implements ShouldQueue
 
             $response = Http::withHeaders([
                 'X-Service-Secret' => $serviceSecret,
-            ])->post($serviceUrl . '/messages/send', [
+                'Content-Type' => 'application/json'
+            ])->post("{$serviceUrl}/api/message/send", [
                 'admin_id' => $senderId,
-                'phone_number' => $recipient->phone,
+                'phone' => $recipient->phone,
                 'message' => $messageBody,
                 'whatsapp_log_id' => $whatsappLog->id,
             ]);

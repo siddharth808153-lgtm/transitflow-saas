@@ -57,6 +57,22 @@ class Driver extends Model
         return $this->hasMany(DriverAssignment::class);
     }
 
+    /**
+     * All leaves for this driver.
+     */
+    public function leaves(): HasMany
+    {
+        return $this->hasMany(DriverLeave::class);
+    }
+
+    /**
+     * All wage adjustments for this driver.
+     */
+    public function wageAdjustments(): HasMany
+    {
+        return $this->hasMany(DriverWageAdjustment::class);
+    }
+
     // ─── Scopes ─────────────────────────────────────────────────────────
 
     /**

@@ -105,16 +105,22 @@ export async function createInstance(adminId) {
           // Wait 3 seconds then reconnect
           setTimeout(() => createInstance(adminId), 3000)
         } else {
-          // Logged out — clear session
+          // Logged out — remove all event listeners first to prevent saveCreds race
+          sock.ev.removeAllListeners('creds.update')
+          sock.ev.removeAllListeners('connection.update')
+          try { sock.end(undefined) } catch (_) { /* ignore */ }
+
           instances.set(adminKey, {
-            ...instance,
             status: INSTANCE_STATUS.LOGGED_OUT,
             socket: null,
-            qr: null
+            qr: null,
+            adminId: adminKey
           })
           // Delete session files so fresh QR is shown next time
           const sessionDir = getSessionDir(adminId)
-          fs.rmSync(sessionDir, { recursive: true, force: true })
+          if (fs.existsSync(sessionDir)) {
+            fs.rmSync(sessionDir, { recursive: true, force: true })
+          }
           logger.info(`Session cleared for admin ${adminId}`)
         }
       }
@@ -166,9 +172,15 @@ export function getInstanceStatus(adminId) {
     }
   }
   
+  let phone = null
+  if (instance.status === INSTANCE_STATUS.CONNECTED && instance.socket?.user?.id) {
+    phone = instance.socket.user.id.split('@')[0].split(':')[0]
+  }
+
   return {
     status: instance.status,
     qr: instance.qr || null,
+    phone: phone,
     message: getStatusMessage(instance.status)
   }
 }

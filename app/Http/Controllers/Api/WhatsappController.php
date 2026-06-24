@@ -53,13 +53,20 @@ class WhatsappController extends Controller
           'transport_whatsapp_secret_2024'
         );
 
-        $response = \Illuminate\Support\Facades\Http::withHeaders([
-            'X-Service-Secret' => $serviceSecret
-        ])->post("{$serviceUrl}/api/instance/connect", [
-            'admin_id' => $adminId
-        ]);
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(10)->withHeaders([
+                'X-Service-Secret' => $serviceSecret
+            ])->post("{$serviceUrl}/api/instance/connect", [
+                'admin_id' => $adminId
+            ]);
 
-        return response()->json($response->json());
+            return response()->json($response->json());
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'WhatsApp service is not reachable. Please ensure the service is running.',
+            ], 503);
+        }
     }
 
     /**
@@ -75,13 +82,20 @@ class WhatsappController extends Controller
           'transport_whatsapp_secret_2024'
         );
 
-        $response = \Illuminate\Support\Facades\Http::withHeaders([
-            'X-Service-Secret' => $serviceSecret
-        ])->post("{$serviceUrl}/api/instance/disconnect", [
-            'admin_id' => $adminId
-        ]);
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(10)->withHeaders([
+                'X-Service-Secret' => $serviceSecret
+            ])->post("{$serviceUrl}/api/instance/disconnect", [
+                'admin_id' => $adminId
+            ]);
 
-        return response()->json($response->json());
+            return response()->json($response->json());
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'WhatsApp service is not reachable. Please ensure the service is running.',
+            ], 503);
+        }
     }
 
     /**
@@ -96,11 +110,39 @@ class WhatsappController extends Controller
           'transport_whatsapp_secret_2024'
         );
 
-        $response = \Illuminate\Support\Facades\Http::withHeaders([
-            'X-Service-Secret' => $serviceSecret
-        ])->get("{$serviceUrl}/api/instance/status/{$adminId}");
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(5)->withHeaders([
+                'X-Service-Secret' => $serviceSecret
+            ])->get("{$serviceUrl}/api/instance/status/{$adminId}");
 
-        return response()->json($response->json());
+            if ($response->successful()) {
+                $data = $response->json();
+                if (isset($data['success']) && $data['success'] && isset($data['data']['status'])) {
+                    $status = $data['data']['status'];
+                    if ($status === 'connected' && !empty($data['data']['phone'])) {
+                        $settings = AdminSetting::firstOrCreate(['admin_id' => $adminId]);
+                        if ($settings->whatsapp_sender_phone !== $data['data']['phone']) {
+                            $settings->update([
+                                'whatsapp_sender_phone' => $data['data']['phone']
+                            ]);
+                        }
+                    }
+                }
+                return response()->json($data);
+            }
+
+            return response()->json([
+                'success' => false,
+                'data' => ['status' => 'disconnected'],
+                'message' => 'WhatsApp service returned an error.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'data' => ['status' => 'disconnected'],
+                'message' => 'WhatsApp service is not reachable. Please ensure the service is running.',
+            ]);
+        }
     }
 
     /**

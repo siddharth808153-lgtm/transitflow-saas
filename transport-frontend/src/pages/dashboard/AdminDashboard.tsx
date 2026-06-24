@@ -30,7 +30,7 @@ import {
   Legend
 } from 'recharts';
 import api from '@/api/axios';
-import { ADMIN_DASHBOARD, TRANSACTIONS, VEHICLES, STUDENTS, PASSENGERS, WHATSAPP, DUES } from '@/api/endpoints';
+import { ADMIN_DASHBOARD, TRANSACTIONS, VEHICLES, STUDENTS, PASSENGERS, WHATSAPP, DUES, DRIVERS } from '@/api/endpoints';
 import PageHeader from '@/components/shared/PageHeader';
 import StatCard from '@/components/shared/StatCard';
 import Card from '@/components/ui/Card';
@@ -132,10 +132,10 @@ export const AdminDashboard: React.FC = () => {
     enabled: isPayModalOpen && payType === 'student_fee',
   });
 
-  const { data: passengersResponse } = useQuery({
-    queryKey: ['quickpay-passengers-list'],
+  const { data: driversResponse } = useQuery({
+    queryKey: ['quickpay-drivers-list'],
     queryFn: async () => {
-      const res = await api.get(PASSENGERS.LIST);
+      const res = await api.get(DRIVERS.LIST);
       return res.data;
     },
     enabled: isPayModalOpen && payType === 'auto_daily',
@@ -231,10 +231,10 @@ export const AdminDashboard: React.FC = () => {
     }
 
     const payload: any = {
-      vehicle_id: selectedReference.vehicle_id || selectedReference.studentAssignments?.[0]?.vehicle_id,
+      vehicle_id: selectedReference.vehicle_id || selectedReference.studentAssignments?.[0]?.vehicle_id || selectedReference.driverAssignments?.[0]?.vehicle_id,
       transaction_type: payType,
       reference_id: selectedReference.id,
-      reference_type: payType === 'student_fee' ? 'student' : 'auto_passenger',
+      reference_type: payType === 'student_fee' ? 'student' : 'driver',
       amount: parseFloat(payAmount),
       payment_method: payMethod,
       notes: payNotes
@@ -267,7 +267,7 @@ export const AdminDashboard: React.FC = () => {
     recordTxMutation.mutate(payload);
   };
 
-  // Filter students or passengers dynamically based on query
+  // Filter students or drivers dynamically based on query
   const filteredReferences = () => {
     if (payType === 'student_fee') {
       const list = studentsResponse?.data || [];
@@ -276,10 +276,10 @@ export const AdminDashboard: React.FC = () => {
         s.user?.phone?.includes(searchQuery)
       );
     } else {
-      const list = passengersResponse?.data || [];
-      return list.filter((p: any) => 
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.phone?.includes(searchQuery)
+      const list = driversResponse?.data?.drivers || driversResponse?.data || [];
+      return list.filter((d: any) => 
+        d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        d.phone?.includes(searchQuery)
       );
     }
   };
@@ -828,8 +828,8 @@ export const AdminDashboard: React.FC = () => {
                   setSearchQuery('');
                 }}
               >
-                <Users className="w-5 h-5" />
-                Auto Fare
+                <UserCheck className="w-5 h-5" />
+                Auto Rent
               </button>
             </div>
           </div>
@@ -837,12 +837,12 @@ export const AdminDashboard: React.FC = () => {
           {/* Step 2: Search and Select Reference */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wide text-slate-400">
-              {payType === 'student_fee' ? 'Search Student' : 'Search Auto Passenger'}
+              {payType === 'student_fee' ? 'Search Student' : 'Search Driver'}
             </label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               <Input
-                placeholder={payType === 'student_fee' ? 'Enter student name or parent phone...' : 'Enter passenger name or phone...'}
+                placeholder={payType === 'student_fee' ? 'Enter student name or parent phone...' : 'Enter driver name or phone...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 rounded-xl"
@@ -858,7 +858,7 @@ export const AdminDashboard: React.FC = () => {
                   filteredReferences().map((ref: any) => {
                     const primaryName = ref.student_name || ref.name;
                     const phoneNum = ref.user?.phone || ref.phone;
-                    const routeName = ref.studentAssignments?.[0]?.vehicle?.name || ref.vehicle?.name || 'No Route';
+                    const routeName = ref.driverAssignments?.[0]?.vehicle?.name || ref.studentAssignments?.[0]?.vehicle?.name || ref.vehicle?.name || 'No Route';
                     return (
                       <div 
                         key={ref.id}
@@ -891,7 +891,7 @@ export const AdminDashboard: React.FC = () => {
                   {selectedReference.student_name || selectedReference.name}
                 </h5>
                 <p className="text-slate-500 text-[10px] mt-0.5">
-                  Route: {selectedReference.studentAssignments?.[0]?.vehicle?.name || selectedReference.vehicle?.name || 'Unassigned'}
+                  Route: {selectedReference.driverAssignments?.[0]?.vehicle?.name || selectedReference.studentAssignments?.[0]?.vehicle?.name || selectedReference.vehicle?.name || 'Unassigned'}
                 </p>
               </div>
               <Button

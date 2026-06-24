@@ -126,6 +126,15 @@ class TransactionController extends Controller
             }
             $personName = $passenger->name;
             $recipientPhone = $passenger->phone;
+        } elseif ($request->reference_type === 'driver') {
+            $driver = \App\Models\Driver::where('id', $request->reference_id)
+                ->where('admin_id', auth()->id())
+                ->first();
+            if (!$driver) {
+                return $this->errorResponse('Record not found', 404);
+            }
+            $personName = $driver->name;
+            $recipientPhone = $driver->phone;
         }
 
         $validated['admin_id'] = auth()->id();
@@ -163,7 +172,8 @@ class TransactionController extends Controller
             $request->amount,
             $request->payment_method,
             $request->payment_for_month,
-            $request->payment_for_date
+            $request->payment_for_date,
+            $request->reference_type
         );
 
         // Create WhatsappLog record
@@ -220,7 +230,8 @@ class TransactionController extends Controller
         $amount,
         string $paymentMethod,
         $paymentForMonth = null,
-        $paymentForDate = null
+        $paymentForDate = null,
+        string $referenceType = null
     ): string {
         $formattedAmount = number_format((float)$amount, 2);
         $method = ucfirst($paymentMethod);
@@ -243,8 +254,10 @@ class TransactionController extends Controller
                 ? Carbon::parse($paymentForDate)->format('d M Y')
                 : 'N/A';
 
-            return "✅ Fare Received!\n"
-                . "Passenger: {$personName}\n"
+            $roleLabel = ($referenceType === 'driver') ? 'Driver' : 'Passenger';
+
+            return "✅ Rent Received!\n"
+                . "{$roleLabel}: {$personName}\n"
                 . "Date: {$dateStr}\n"
                 . "Amount: ₹{$formattedAmount}\n"
                 . "Method: {$method}\n"

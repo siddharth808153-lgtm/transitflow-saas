@@ -43,7 +43,6 @@ export const Sidebar: React.FC = () => {
       { label: 'Vehicles', path: '/vehicles', icon: Bus },
       { label: 'Drivers', path: '/drivers', icon: UserCheck },
       { label: 'Students', path: '/students', icon: GraduationCap },
-      { label: 'Passengers', path: '/passengers', icon: Users },
       { label: 'Transactions', path: '/transactions', icon: Receipt },
       { label: 'Dues', path: '/dues', icon: CreditCard },
       { label: 'Reports', path: '/reports', icon: FileText },

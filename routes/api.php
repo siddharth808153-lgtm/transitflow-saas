@@ -8,6 +8,11 @@ use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VehicleController;
+use App\Http\Controllers\Api\WhatsappController;
+use App\Http\Controllers\Api\SuperAdminController;
+use App\Http\Controllers\Api\AdminDashboardController;
+use App\Http\Controllers\Api\UserPortalController;
+use App\Http\Controllers\Api\ReportsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -20,25 +25,26 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-// ─── Public Routes (No Auth) ────────────────────────────────────────────────
+// ─── 1. Public Routes (No Auth) ────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
 });
 
-// ─── Protected Routes (Require Sanctum Auth) ────────────────────────────────
+Route::post('/whatsapp/status-update', [WhatsappController::class, 'statusUpdate']);
+
+// ─── 2. Protected Routes (Require Sanctum Auth) ────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
 
     // Auth routes available to all authenticated users
     Route::prefix('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
+        Route::patch('/change-password', [AuthController::class, 'changePassword']);
     });
 
     // ─── Super Admin Only ───────────────────────────────────────────────
     Route::middleware('super_admin')->prefix('auth')->group(function () {
         Route::post('/create-admin', [AuthController::class, 'createAdmin']);
-        Route::get('/admins', [AuthController::class, 'listAdmins']);
-        Route::patch('/admins/{id}/toggle-status', [AuthController::class, 'toggleAdminStatus']);
     });
 
     // ─── Admin Only ─────────────────────────────────────────────────────
@@ -48,6 +54,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ─── Admin or Super Admin Routes ────────────────────────────────────
     Route::middleware('admin_or_super')->group(function () {
+
         // Transactions
         Route::get('/transactions', [TransactionController::class, 'index']);
         Route::post('/transactions', [TransactionController::class, 'store']);
@@ -83,8 +90,51 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('passengers', PassengerController::class);
         Route::get('/passengers/{id}/dues', [PassengerController::class, 'dues']);
 
-        // Users list (for parent dropdown)
+        // Users (parent list for dropdown)
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/users', [UserController::class, 'store']);
+
+        // WhatsApp settings/status
+        Route::post('/whatsapp/connect', [WhatsappController::class, 'connect']);
+        Route::post('/whatsapp/disconnect', [WhatsappController::class, 'disconnect']);
+        Route::get('/whatsapp/status', [WhatsappController::class, 'connectionStatus']);
+        Route::get('/whatsapp/logs', [WhatsappController::class, 'getLogs']);
+        Route::get('/settings', [WhatsappController::class, 'getSettings']);
+        Route::patch('/settings', [WhatsappController::class, 'updateSettings']);
     });
+});
+
+// ─── 3. Super Admin Dashboard (Require Sanctum & Super Admin) ────────────────
+Route::middleware(['auth:sanctum', 'super_admin'])->prefix('super-admin')->group(function () {
+    Route::get('/stats', [SuperAdminController::class, 'platformStats']);
+    Route::get('/admins', [SuperAdminController::class, 'adminsList']);
+    Route::get('/admins/{id}', [SuperAdminController::class, 'adminDetail']);
+    Route::patch('/admins/{id}/toggle-status', [SuperAdminController::class, 'toggleAdminStatus']);
+    Route::get('/revenue-trend', [SuperAdminController::class, 'monthlyRevenueTrend']);
+    Route::get('/admins/{id}/revenue-trend', [SuperAdminController::class, 'adminRevenueTrend']);
+});
+
+// ─── 4. Admin Dashboard (Require Sanctum & Admin) ────────────────────────────
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin-dashboard')->group(function () {
+    Route::get('/summary', [AdminDashboardController::class, 'summary']);
+    Route::get('/recent-transactions', [AdminDashboardController::class, 'recentTransactions']);
+    Route::get('/pending-dues', [AdminDashboardController::class, 'pendingDues']);
+    Route::get('/monthly-revenue', [AdminDashboardController::class, 'monthlyRevenue']);
+    Route::get('/vehicle-performance', [AdminDashboardController::class, 'vehiclePerformance']);
+});
+
+// ─── 5. User Portal (Require Sanctum & role: user) ───────────────────────────
+Route::middleware(['auth:sanctum'])->prefix('portal')->group(function () {
+    Route::get('/profile', [UserPortalController::class, 'myProfile']);
+    Route::get('/payments', [UserPortalController::class, 'myPayments']);
+    Route::get('/dues', [UserPortalController::class, 'myDues']);
+    Route::get('/students/{id}', [UserPortalController::class, 'studentDetail']);
+});
+
+// ─── 6. Reports (Require Sanctum & admin or super admin) ─────────────────────
+Route::middleware(['auth:sanctum', 'admin_or_super'])->prefix('reports')->group(function () {
+    Route::get('/monthly-collection', [ReportsController::class, 'monthlyCollectionReport']);
+    Route::get('/dues', [ReportsController::class, 'dueReport']);
+    Route::get('/vehicle-summary', [ReportsController::class, 'vehicleSummaryReport']);
+    Route::get('/driver-wages', [ReportsController::class, 'driverWageReport']);
 });

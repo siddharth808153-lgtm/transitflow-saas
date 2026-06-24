@@ -20,10 +20,40 @@ class DriverController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Driver::query()->currentVehicle();
+        $query = Driver::query()->with(['driverAssignments' => function ($q) {
+            $q->whereNull('relieved_date')->with('vehicle');
+        }]);
 
         if (auth()->user()->role === 'admin') {
             $query->where('admin_id', auth()->id());
+        }
+
+        // Filter by is_active
+        if ($request->has('is_active') && $request->is_active !== '') {
+            $query->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
+        }
+
+        // Filter by search (name or phone)
+        if ($request->has('search') && $request->search !== '') {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('phone', 'like', '%' . $search . '%');
+            });
+        }
+
+        // Filter by assigned (true = currently assigned, false = unassigned)
+        if ($request->has('assigned') && $request->assigned !== '') {
+            $assigned = filter_var($request->assigned, FILTER_VALIDATE_BOOLEAN);
+            if ($assigned) {
+                $query->whereHas('driverAssignments', function ($q) {
+                    $q->whereNull('relieved_date');
+                });
+            } else {
+                $query->whereDoesntHave('driverAssignments', function ($q) {
+                    $q->whereNull('relieved_date');
+                });
+            }
         }
 
         $drivers = $query->paginate(20);
@@ -46,10 +76,10 @@ class DriverController extends Controller
     {
         $validated = $request->validate([
             'name'           => 'required|string|max:255',
-            'phone'          => 'required|string|max:20',
+            'phone'          => 'required|string|unique:drivers,phone',
             'license_number' => 'nullable|string|max:50',
-            'daily_wage'     => 'required|numeric|min:0',
-            'is_active'      => 'nullable|boolean',
+            'daily_wage'     => 'nullable|numeric|min:0',
+            'is_active'      => 'boolean',
         ]);
 
         $validated['admin_id'] = auth()->id();
@@ -74,7 +104,7 @@ class DriverController extends Controller
         $driver = $query->findOrFail($id);
 
         $driver->load(['driverAssignments' => function ($q) {
-            $q->with('vehicle')->latest();
+            $q->with('vehicle')->orderBy('assigned_date', 'desc');
         }]);
 
         return $this->successResponse($driver, 'Driver details retrieved successfully');
@@ -94,12 +124,15 @@ class DriverController extends Controller
         $driver = $query->findOrFail($id);
 
         $validated = $request->validate([
-            'name'           => 'sometimes|required|string|max:255',
-            'phone'          => 'sometimes|required|string|max:20',
+            'name'           => 'nullable|string|max:255',
+            'phone'          => 'nullable|string|max:20',
             'license_number' => 'nullable|string|max:50',
-            'daily_wage'     => 'sometimes|required|numeric|min:0',
-            'is_active'      => 'sometimes|required|boolean',
+            'daily_wage'     => 'nullable|numeric|min:0',
+            'is_active'      => 'nullable|boolean',
         ]);
+
+        // Filter null values for partial update
+        $validated = array_filter($validated, fn($v) => $v !== null);
 
         $driver->update($validated);
 
@@ -118,6 +151,15 @@ class DriverController extends Controller
         }
 
         $driver = $query->findOrFail($id);
+
+        // Check for active assignment
+        if ($driver->isCurrentlyAssigned()) {
+            return $this->errorResponse(
+                'Cannot delete driver currently assigned to a vehicle.',
+                422
+            );
+        }
+
         $driver->delete();
 
         return $this->successResponse(null, 'Driver deleted successfully');
@@ -139,35 +181,35 @@ class DriverController extends Controller
             'assigned_date' => 'required|date',
         ]);
 
+        // Check vehicle belongs to auth admin
+        $vehicleQuery = Vehicle::query();
+        if (auth()->user()->role === 'admin') {
+            $vehicleQuery->where('admin_id', auth()->id());
+        }
+        $vehicle = $vehicleQuery->findOrFail($request->vehicle_id);
+
         // Check if the vehicle already has an active driver
         $activeVehicleAssignment = DriverAssignment::where('vehicle_id', $request->vehicle_id)
             ->whereNull('relieved_date')
             ->first();
 
         if ($activeVehicleAssignment) {
-            return $this->errorResponse('Vehicle already has an active driver', 422);
+            return $this->errorResponse(
+                'This vehicle already has an active driver. Please relieve the current driver first.',
+                422
+            );
         }
 
-        // Relieve any current active assignment of this driver
+        // Check if driver already has an active assignment
         $activeDriverAssignment = DriverAssignment::where('driver_id', $id)
             ->whereNull('relieved_date')
             ->first();
 
         if ($activeDriverAssignment) {
-            $activeDriverAssignment->update([
-                'relieved_date'     => $request->assigned_date,
-                'reason_for_change' => 'Reassigned to another vehicle.',
-            ]);
-
-            VehicleLog::create([
-                'admin_id'       => $activeDriverAssignment->admin_id,
-                'vehicle_id'     => $activeDriverAssignment->vehicle_id,
-                'event_type'     => 'driver_relieved',
-                'reference_id'   => $driver->id,
-                'reference_type' => 'driver',
-                'note'           => "Driver '{$driver->name}' was relieved due to re-assignment.",
-                'performed_by'   => auth()->id(),
-            ]);
+            return $this->errorResponse(
+                'This driver is already assigned to a vehicle. Please relieve them first.',
+                422
+            );
         }
 
         // Create new assignment
@@ -189,6 +231,8 @@ class DriverController extends Controller
             'note'           => "Driver '{$driver->name}' was assigned to this vehicle.",
             'performed_by'   => auth()->id(),
         ]);
+
+        $assignment->load(['driver', 'vehicle']);
 
         return $this->successResponse($assignment, 'Driver assigned successfully');
     }
@@ -214,7 +258,7 @@ class DriverController extends Controller
             ->first();
 
         if (!$activeAssignment) {
-            return $this->errorResponse('Driver does not have any active vehicle assignment', 400);
+            return $this->errorResponse('Driver has no active assignment', 404);
         }
 
         $activeAssignment->update([
@@ -233,6 +277,6 @@ class DriverController extends Controller
             'performed_by'   => auth()->id(),
         ]);
 
-        return $this->successResponse(null, 'Driver relieved from vehicle assignment successfully');
+        return $this->successResponse($activeAssignment, 'Driver relieved from vehicle assignment successfully');
     }
 }

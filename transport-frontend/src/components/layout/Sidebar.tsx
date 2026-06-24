@@ -13,7 +13,9 @@ import {
   Menu,
   ChevronLeft,
   ChevronRight,
-  CreditCard
+  CreditCard,
+  User,
+  FileText
 } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import Avatar from '@/components/ui/Avatar';
@@ -24,16 +26,36 @@ export const Sidebar: React.FC = () => {
   const isCollapsed = useThemeStore((state) => state.layout.sideNavCollapse);
   const setSideNavCollapse = useThemeStore((state) => state.setSideNavCollapse);
 
-  const navItems = [
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Vehicles', path: '/vehicles', icon: Bus },
-    { label: 'Drivers', path: '/drivers', icon: UserCheck },
-    { label: 'Students', path: '/students', icon: GraduationCap },
-    { label: 'Passengers', path: '/passengers', icon: Users },
-    { label: 'Transactions', path: '/transactions', icon: Receipt },
-    { label: 'Dues', path: '/dues', icon: CreditCard },
-    { label: 'Settings', path: '/settings', icon: Settings, isPlaceholder: true },
-  ];
+  const role = user?.role || 'admin';
+  let navItems: { label: string; path: string; icon: any; isPlaceholder?: boolean }[] = [];
+
+  if (role === 'super_admin') {
+    navItems = [
+      { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+      { label: 'Admins', path: '/admins', icon: Users },
+      { label: 'Reports', path: '/reports', icon: FileText },
+      { label: 'Revenue', path: '/revenue', icon: CreditCard, isPlaceholder: true },
+      { label: 'WhatsApp Settings', path: '/settings/whatsapp', icon: Settings },
+    ];
+  } else if (role === 'admin') {
+    navItems = [
+      { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+      { label: 'Vehicles', path: '/vehicles', icon: Bus },
+      { label: 'Drivers', path: '/drivers', icon: UserCheck },
+      { label: 'Students', path: '/students', icon: GraduationCap },
+      { label: 'Passengers', path: '/passengers', icon: Users },
+      { label: 'Transactions', path: '/transactions', icon: Receipt },
+      { label: 'Dues', path: '/dues', icon: CreditCard },
+      { label: 'Reports', path: '/reports', icon: FileText },
+      { label: 'WhatsApp Settings', path: '/settings/whatsapp', icon: Settings },
+    ];
+  } else {
+    // role is 'user' (student/parent/passenger)
+    navItems = [
+      { label: 'My Payments', path: '/portal/payments', icon: CreditCard },
+      { label: 'Profile', path: '/portal/profile', icon: User },
+    ];
+  }
 
   return (
     <aside 

@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'whatsapp' => [
+        'url' => env('WHATSAPP_SERVICE_URL', 'http://localhost:3001'),
+        'secret' => env('WHATSAPP_SERVICE_SECRET', 'transport_whatsapp_secret_2024'),
+    ],
+
 ];

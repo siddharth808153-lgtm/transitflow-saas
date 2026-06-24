@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AutoPassenger;
 use App\Models\Due;
 use App\Models\Student;
-use App\Models\AutoPassenger;
 use App\Models\Transaction;
+use App\Models\Vehicle;
 use App\Models\VehicleLog;
+use App\Models\WhatsappLog;
 use App\Jobs\SendPaymentWhatsappJob;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -29,24 +31,28 @@ class DueController extends Controller
             $query->where('admin_id', auth()->id());
         }
 
-        // Apply filters
+        // Filter by vehicle_id
         if ($request->has('vehicle_id') && $request->vehicle_id !== '') {
             $query->where('vehicle_id', $request->vehicle_id);
         }
 
+        // Filter by reference_type
         if ($request->has('reference_type') && $request->reference_type !== '') {
             $query->where('reference_type', $request->reference_type);
         }
 
+        // Filter by is_paid
         if ($request->has('is_paid') && $request->is_paid !== '') {
             $query->where('is_paid', filter_var($request->is_paid, FILTER_VALIDATE_BOOLEAN));
         }
 
+        // Filter by month (YYYY-MM format)
         if ($request->has('month') && $request->month !== '') {
-            // month is in format YYYY-MM
             $month = $request->month;
-            $query->whereRaw("DATE_FORMAT(due_for_month, '%Y-%m') = ?", [$month])
-                ->orWhereRaw("DATE_FORMAT(due_for_date, '%Y-%m') = ?", [$month]);
+            $query->where(function ($q) use ($month) {
+                $q->whereRaw("DATE_FORMAT(due_for_month, '%Y-%m') = ?", [$month])
+                  ->orWhereRaw("DATE_FORMAT(due_for_date, '%Y-%m') = ?", [$month]);
+            });
         }
 
         // For overdue status
@@ -76,17 +82,11 @@ class DueController extends Controller
      */
     public function generateMonthlyDues(Request $request): JsonResponse
     {
-        if (auth()->user()->role !== 'admin') {
-            return $this->errorResponse('Access denied. Admins only.', 403);
-        }
-
         $request->validate([
             'month' => 'required|date_format:Y-m',
         ]);
 
-        $monthStr = $request->month . '-01'; // Get first day of the given month
-        $monthDate = Carbon::parse($monthStr);
-        
+        $firstDay = Carbon::createFromFormat('Y-m', $request->month)->startOfMonth();
         $adminId = auth()->id();
 
         // Active students of this admin with active assignments
@@ -113,7 +113,7 @@ class DueController extends Controller
             // Check if due already exists for this student and this month
             $exists = Due::where('reference_type', 'student')
                 ->where('reference_id', $student->id)
-                ->whereRaw("DATE_FORMAT(due_for_month, '%Y-%m') = ?", [$request->month])
+                ->where('due_for_month', $firstDay)
                 ->exists();
 
             if ($exists) {
@@ -127,7 +127,7 @@ class DueController extends Controller
                 'reference_id'   => $student->id,
                 'reference_type' => 'student',
                 'due_amount'     => $activeAssignment->monthly_fee,
-                'due_for_month'  => $monthDate,
+                'due_for_month'  => $firstDay,
                 'is_paid'        => false,
             ]);
 
@@ -137,7 +137,7 @@ class DueController extends Controller
         return $this->successResponse([
             'generated' => $generated,
             'skipped'   => $skipped,
-        ], "Generated {$generated} monthly dues, skipped {$skipped} existing/unassigned.");
+        ], "Generated {$generated} dues for {$request->month}");
     }
 
     /**
@@ -145,14 +145,19 @@ class DueController extends Controller
      */
     public function generateDailyDues(Request $request): JsonResponse
     {
-        if (auth()->user()->role !== 'admin') {
-            return $this->errorResponse('Access denied. Admins only.', 403);
-        }
-
         $request->validate([
             'date'       => 'required|date',
             'vehicle_id' => 'required|exists:vehicles,id',
         ]);
+
+        // Check vehicle type = 'auto'
+        $vehicle = Vehicle::findOrFail($request->vehicle_id);
+        if ($vehicle->type !== 'auto') {
+            return $this->errorResponse(
+                'Daily dues can only be generated for auto-type vehicles.',
+                422
+            );
+        }
 
         $date = Carbon::parse($request->date)->format('Y-m-d');
         $adminId = auth()->id();
@@ -202,26 +207,30 @@ class DueController extends Controller
      */
     public function markAsPaid(Request $request, $id): JsonResponse
     {
-        if (auth()->user()->role !== 'admin') {
-            return $this->errorResponse('Access denied. Admins only.', 403);
-        }
-
         $request->validate([
             'payment_method' => 'required|string|in:cash,upi,bank,other',
             'notes'          => 'nullable|string|max:500',
         ]);
 
-        $due = Due::where('admin_id', auth()->id())->findOrFail($id);
+        // Find due and verify it belongs to admin's vehicle
+        $due = Due::query();
+        if (auth()->user()->role === 'admin') {
+            $due->where('admin_id', auth()->id());
+        }
+        $due = $due->findOrFail($id);
 
         if ($due->is_paid) {
-            return $this->errorResponse('This due is already paid.', 400);
+            return $this->errorResponse('This due is already marked as paid', 422);
         }
 
-        // Create transaction automatically
+        // Determine transaction_type based on reference_type
+        $transactionType = $due->reference_type === 'student' ? 'student_fee' : 'auto_daily';
+
+        // Create Transaction automatically
         $transaction = Transaction::create([
             'admin_id'          => auth()->id(),
             'vehicle_id'        => $due->vehicle_id,
-            'transaction_type'  => $due->reference_type === 'student' ? 'student_fee' : 'auto_daily',
+            'transaction_type'  => $transactionType,
             'reference_id'      => $due->reference_id,
             'reference_type'    => $due->reference_type,
             'amount'            => $due->due_amount,
@@ -232,31 +241,53 @@ class DueController extends Controller
             'collected_by'      => auth()->id(),
         ]);
 
-        // Update Due
+        // Mark due as paid
         $due->update([
             'is_paid'        => true,
             'paid_at'        => now(),
             'transaction_id' => $transaction->id,
         ]);
 
-        // Dispatch WhatsApp Job
-        SendPaymentWhatsappJob::dispatch($transaction);
+        // Get person name and phone for WhatsApp
+        $personName = null;
+        $recipientPhone = null;
 
-        // Log to VehicleLogs
-        VehicleLog::create([
-            'admin_id'       => auth()->id(),
-            'vehicle_id'     => $due->vehicle_id,
-            'event_type'     => 'payment_received',
-            'reference_id'   => $due->reference_id,
-            'reference_type' => $due->reference_type,
-            'note'           => "Due marked paid via " . strtoupper($request->payment_method),
-            'performed_by'   => auth()->id(),
+        if ($due->reference_type === 'student') {
+            $student = Student::with('user')->find($due->reference_id);
+            $personName = $student?->student_name;
+            $recipientPhone = $student?->user?->phone;
+        } elseif ($due->reference_type === 'auto_passenger') {
+            $passenger = AutoPassenger::find($due->reference_id);
+            $personName = $passenger?->name;
+            $recipientPhone = $passenger?->phone;
+        }
+
+        // Build message body
+        $messageBody = $this->buildWhatsappMessage(
+            $transactionType,
+            $personName,
+            $due->due_amount,
+            $request->payment_method,
+            $due->due_for_month,
+            $due->due_for_date
+        );
+
+        // Create WhatsappLog
+        WhatsappLog::create([
+            'admin_id'        => auth()->id(),
+            'transaction_id'  => $transaction->id,
+            'recipient_phone' => $recipientPhone,
+            'message_body'    => $messageBody,
+            'status'          => 'pending',
         ]);
 
+        // Dispatch SendPaymentWhatsappJob
+        SendPaymentWhatsappJob::dispatch($transaction);
+
         return $this->successResponse([
-            'success'     => true,
+            'due'         => $due,
             'transaction' => $transaction,
-        ], 'Payment recorded and due updated successfully');
+        ], 'Payment recorded');
     }
 
     /**
@@ -269,12 +300,13 @@ class DueController extends Controller
 
         $now = Carbon::now();
 
-        // 1. Total collected this month (sum of transactions recorded in current month)
+        // 1. Total collected this month (sum of transactions)
         $txQuery = Transaction::query();
         if (!$isSuper) {
             $txQuery->where('admin_id', $adminId);
         }
-        $totalCollected = $txQuery->whereMonth('created_at', $now->month)
+        $totalCollected = (clone $txQuery)
+            ->whereMonth('created_at', $now->month)
             ->whereYear('created_at', $now->year)
             ->sum('amount');
 
@@ -283,11 +315,15 @@ class DueController extends Controller
         if (!$isSuper) {
             $duesThisMonthQuery->where('admin_id', $adminId);
         }
-        
-        // Paid/Unpaid dues of this month (either due_for_month = this month, or due_for_date is in this month)
-        $duesThisMonth = $duesThisMonthQuery->where(function($q) use ($now) {
-            $q->whereMonth('due_for_month', $now->month)->whereYear('due_for_month', $now->year)
-              ->orWhereMonth('due_for_date', $now->month)->whereYear('due_for_date', $now->year);
+
+        $duesThisMonth = (clone $duesThisMonthQuery)->where(function($q) use ($now) {
+            $q->where(function ($q2) use ($now) {
+                $q2->whereMonth('due_for_month', $now->month)
+                   ->whereYear('due_for_month', $now->year);
+            })->orWhere(function ($q2) use ($now) {
+                $q2->whereMonth('due_for_date', $now->month)
+                   ->whereYear('due_for_date', $now->year);
+            });
         })->get();
 
         $paidThisMonth = $duesThisMonth->where('is_paid', true)->sum('due_amount');
@@ -299,7 +335,7 @@ class DueController extends Controller
         if (!$isSuper) {
             $overdueQuery->where('admin_id', $adminId);
         }
-        $totalOverdue = $overdueQuery->where('is_paid', false)
+        $totalOverdue = (clone $overdueQuery)->where('is_paid', false)
             ->where(function ($q) use ($now) {
                 $q->where('due_for_month', '<', $now->copy()->startOfMonth())
                   ->orWhere('due_for_date', '<', $now->copy()->startOfMonth());
@@ -307,25 +343,29 @@ class DueController extends Controller
             ->sum('due_amount');
 
         // 4. Pending counts
-        $studentPendingQuery = Due::query()->where('is_paid', false)->where('reference_type', 'student');
+        $studentPendingQuery = Due::query()
+            ->where('is_paid', false)
+            ->where('reference_type', 'student');
         if (!$isSuper) {
             $studentPendingQuery->where('admin_id', $adminId);
         }
-        $studentPendingCount = $studentPendingQuery->where(function($q) use ($now) {
+        $studentPendingCount = (clone $studentPendingQuery)->where(function($q) use ($now) {
             $q->whereMonth('due_for_month', $now->month)->whereYear('due_for_month', $now->year);
         })->count();
 
-        $passengerPendingQuery = Due::query()->where('is_paid', false)->where('reference_type', 'auto_passenger');
+        $passengerPendingQuery = Due::query()
+            ->where('is_paid', false)
+            ->where('reference_type', 'auto_passenger');
         if (!$isSuper) {
             $passengerPendingQuery->where('admin_id', $adminId);
         }
-        $passengerPendingCount = $passengerPendingQuery->where(function($q) use ($now) {
+        $passengerPendingCount = (clone $passengerPendingQuery)->where(function($q) use ($now) {
             $q->whereMonth('due_for_date', $now->month)->whereYear('due_for_date', $now->year);
         })->count();
 
-        // 5. Collection rate percentage (this month's paid / this month's total dues)
-        $collectionRate = $totalDuesThisMonth > 0 
-            ? round(($paidThisMonth / $totalDuesThisMonth) * 100, 1) 
+        // 5. Collection rate percentage
+        $collectionRate = $totalDuesThisMonth > 0
+            ? round(($paidThisMonth / $totalDuesThisMonth) * 100, 1)
             : 0;
 
         return $this->successResponse([
@@ -336,5 +376,48 @@ class DueController extends Controller
             'passenger_dues_pending'     => $passengerPendingCount,
             'collection_rate'            => (float)$collectionRate,
         ], 'Dashboard metrics retrieved');
+    }
+
+    /**
+     * Build the WhatsApp message body based on transaction type.
+     */
+    private function buildWhatsappMessage(
+        string $type,
+        ?string $personName,
+        $amount,
+        string $paymentMethod,
+        $paymentForMonth = null,
+        $paymentForDate = null
+    ): string {
+        $formattedAmount = number_format((float)$amount, 2);
+        $method = ucfirst($paymentMethod);
+
+        if ($type === 'student_fee') {
+            $monthYear = $paymentForMonth
+                ? Carbon::parse($paymentForMonth)->format('F Y')
+                : 'N/A';
+
+            return "✅ Payment Received!\n"
+                . "Student: {$personName}\n"
+                . "Month: {$monthYear}\n"
+                . "Amount: ₹{$formattedAmount}\n"
+                . "Method: {$method}\n"
+                . "Thank you! 🙏";
+        }
+
+        if ($type === 'auto_daily') {
+            $dateStr = $paymentForDate
+                ? Carbon::parse($paymentForDate)->format('d M Y')
+                : 'N/A';
+
+            return "✅ Fare Received!\n"
+                . "Passenger: {$personName}\n"
+                . "Date: {$dateStr}\n"
+                . "Amount: ₹{$formattedAmount}\n"
+                . "Method: {$method}\n"
+                . "Thank you! 🙏";
+        }
+
+        return "✅ Payment of ₹{$formattedAmount} recorded via {$method}. Thank you! 🙏";
     }
 }

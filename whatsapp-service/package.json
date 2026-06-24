@@ -1,0 +1,24 @@
+{
+  "name": "transport-whatsapp-service",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "latest",
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "qrcode": "^1.5.3",
+    "pino": "^8.17.0",
+    "pino-pretty": "^10.3.1",
+    "dotenv": "^16.3.1",
+    "node-cache": "^5.1.2",
+    "cors": "^2.8.5",
+    "express-rate-limit": "^7.1.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

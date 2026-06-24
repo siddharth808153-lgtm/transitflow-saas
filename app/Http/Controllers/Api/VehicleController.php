@@ -19,13 +19,30 @@ class VehicleController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Vehicle::query()
-            ->currentDriver()
+            ->with(['driverAssignments' => function ($q) {
+                $q->whereNull('relieved_date')->with('driver');
+            }])
             ->withCount(['studentAssignments' => function ($q) {
                 $q->whereNull('removed_date');
             }]);
 
         if (auth()->user()->role === 'admin') {
             $query->where('admin_id', auth()->id());
+        }
+
+        // Filter by type
+        if ($request->has('type') && $request->type !== '') {
+            $query->where('type', $request->type);
+        }
+
+        // Filter by is_active
+        if ($request->has('is_active') && $request->is_active !== '') {
+            $query->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
+        }
+
+        // Filter by search (name)
+        if ($request->has('search') && $request->search !== '') {
+            $query->where('name', 'like', '%' . $request->search . '%');
         }
 
         $vehicles = $query->paginate(20);
@@ -46,12 +63,17 @@ class VehicleController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        // Enforce admin only
+        if (auth()->user()->role !== 'admin') {
+            return $this->errorResponse('Access denied. Admins only.', 403);
+        }
+
         $validated = $request->validate([
             'name'       => 'required|string|max:255',
-            'type'       => 'required|string|in:bus,auto',
-            'wage_type'  => 'required|string|in:monthly,daily',
-            'capacity'   => 'required|integer|min:1',
-            'is_active'  => 'nullable|boolean',
+            'type'       => 'required|string|in:auto,bus',
+            'wage_type'  => 'required|string|in:daily,monthly',
+            'capacity'   => 'nullable|integer|min:1',
+            'is_active'  => 'boolean',
         ]);
 
         $validated['admin_id'] = auth()->id();
@@ -59,12 +81,12 @@ class VehicleController extends Controller
 
         $vehicle = Vehicle::create($validated);
 
-        // Log the creation
+        // Log the creation as vehicle_activated
         VehicleLog::create([
             'admin_id'     => $vehicle->admin_id,
             'vehicle_id'   => $vehicle->id,
-            'event_type'   => 'vehicle_created',
-            'note'         => "Vehicle '{$vehicle->name}' was created.",
+            'event_type'   => 'vehicle_activated',
+            'note'         => "Vehicle '{$vehicle->name}' was created and activated.",
             'performed_by' => auth()->id(),
         ]);
 
@@ -91,9 +113,7 @@ class VehicleController extends Controller
             'studentAssignments' => function ($q) {
                 $q->whereNull('removed_date')->with('student.user');
             },
-            'autoPassengers' => function ($q) {
-                $q->where('is_active', true);
-            }
+            'admin.adminSettings',
         ]);
 
         return $this->successResponse($vehicle, 'Vehicle details retrieved successfully');
@@ -113,23 +133,41 @@ class VehicleController extends Controller
         $vehicle = $query->findOrFail($id);
 
         $validated = $request->validate([
-            'name'       => 'sometimes|required|string|max:255',
-            'type'       => 'sometimes|required|string|in:bus,auto',
-            'wage_type'  => 'sometimes|required|string|in:monthly,daily',
-            'capacity'   => 'sometimes|required|integer|min:1',
-            'is_active'  => 'sometimes|required|boolean',
+            'name'       => 'nullable|string|max:255',
+            'type'       => 'nullable|string|in:auto,bus',
+            'wage_type'  => 'nullable|string|in:daily,monthly',
+            'capacity'   => 'nullable|integer|min:1',
+            'is_active'  => 'nullable|boolean',
         ]);
+
+        // Filter out null values to allow partial updates
+        $validated = array_filter($validated, fn($v) => $v !== null);
+
+        $oldIsActive = $vehicle->is_active;
 
         $vehicle->update($validated);
 
-        // Log the update
-        VehicleLog::create([
-            'admin_id'     => $vehicle->admin_id,
-            'vehicle_id'   => $vehicle->id,
-            'event_type'   => 'vehicle_updated',
-            'note'         => "Vehicle '{$vehicle->name}' details were updated.",
-            'performed_by' => auth()->id(),
-        ]);
+        // Log is_active status changes
+        if (isset($validated['is_active'])) {
+            $newIsActive = (bool)$validated['is_active'];
+            if ($oldIsActive && !$newIsActive) {
+                VehicleLog::create([
+                    'admin_id'     => $vehicle->admin_id,
+                    'vehicle_id'   => $vehicle->id,
+                    'event_type'   => 'vehicle_deactivated',
+                    'note'         => "Vehicle '{$vehicle->name}' was deactivated.",
+                    'performed_by' => auth()->id(),
+                ]);
+            } elseif (!$oldIsActive && $newIsActive) {
+                VehicleLog::create([
+                    'admin_id'     => $vehicle->admin_id,
+                    'vehicle_id'   => $vehicle->id,
+                    'event_type'   => 'vehicle_activated',
+                    'note'         => "Vehicle '{$vehicle->name}' was activated.",
+                    'performed_by' => auth()->id(),
+                ]);
+            }
+        }
 
         return $this->successResponse($vehicle, 'Vehicle updated successfully');
     }
@@ -146,16 +184,32 @@ class VehicleController extends Controller
         }
 
         $vehicle = $query->findOrFail($id);
-        $vehicle->delete();
 
-        // Log the deletion
-        VehicleLog::create([
-            'admin_id'     => $vehicle->admin_id,
-            'vehicle_id'   => $id,
-            'event_type'   => 'vehicle_deleted',
-            'note'         => "Vehicle '{$vehicle->name}' was deleted.",
-            'performed_by' => auth()->id(),
-        ]);
+        // Check for active driver assignment
+        $hasActiveDriver = $vehicle->driverAssignments()
+            ->whereNull('relieved_date')
+            ->exists();
+
+        if ($hasActiveDriver) {
+            return $this->errorResponse(
+                'Cannot delete vehicle with an active driver. Please relieve the driver first.',
+                422
+            );
+        }
+
+        // Check for active student assignments
+        $hasActiveStudents = $vehicle->studentAssignments()
+            ->whereNull('removed_date')
+            ->exists();
+
+        if ($hasActiveStudents) {
+            return $this->errorResponse(
+                'Cannot delete vehicle with active students. Please remove students first.',
+                422
+            );
+        }
+
+        $vehicle->delete();
 
         return $this->successResponse(null, 'Vehicle deleted successfully');
     }
@@ -178,7 +232,7 @@ class VehicleController extends Controller
             ->with('driver')
             ->first();
 
-        return $this->successResponse($activeAssignment ? $activeAssignment->driver : null, 'Current driver retrieved');
+        return $this->successResponse($activeAssignment, 'Current driver retrieved');
     }
 
     /**
@@ -194,19 +248,18 @@ class VehicleController extends Controller
 
         $vehicle = $query->findOrFail($id);
 
-        $students = $vehicle->studentAssignments()
+        $assignments = $vehicle->studentAssignments()
             ->whereNull('removed_date')
             ->with('student.user')
-            ->get()
-            ->pluck('student');
+            ->get();
 
-        return $this->successResponse($students, 'Current students retrieved');
+        return $this->successResponse($assignments, 'Current students retrieved');
     }
 
     /**
      * Get the logs for this vehicle.
      */
-    public function logs($id): JsonResponse
+    public function logs(Request $request, $id): JsonResponse
     {
         $query = Vehicle::query();
 
@@ -216,11 +269,25 @@ class VehicleController extends Controller
 
         $vehicle = $query->findOrFail($id);
 
-        $logs = $vehicle->vehicleLogs()
+        $logsQuery = $vehicle->vehicleLogs()
             ->with('performedBy')
-            ->latest()
-            ->get();
+            ->latest();
 
-        return $this->successResponse($logs, 'Vehicle logs retrieved');
+        // Optional filter by event_type
+        if ($request->has('event_type') && $request->event_type !== '') {
+            $logsQuery->where('event_type', $request->event_type);
+        }
+
+        $logs = $logsQuery->paginate(20);
+
+        return $this->successResponse([
+            'logs' => $logs->items(),
+            'pagination' => [
+                'current_page' => $logs->currentPage(),
+                'last_page'    => $logs->lastPage(),
+                'per_page'     => $logs->perPage(),
+                'total'        => $logs->total(),
+            ]
+        ], 'Vehicle logs retrieved');
     }
 }

@@ -185,4 +185,26 @@ class AuthController extends Controller
             'is_active' => $admin->is_active,
         ], "Admin {$status} successfully");
     }
+
+    /**
+     * Change the authenticated user's password.
+     */
+    public function changePassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'old_password' => 'required|string',
+            'new_password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($request->old_password, $user->password)) {
+            return $this->errorResponse('The provided current password does not match your record.', 422);
+        }
+
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+
+        return $this->successResponse(null, 'Password changed successfully');
+    }
 }

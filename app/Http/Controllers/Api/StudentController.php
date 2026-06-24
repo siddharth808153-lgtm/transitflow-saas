@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Due;
 use App\Models\Student;
 use App\Models\StudentAssignment;
 use App\Models\VehicleLog;
@@ -20,25 +21,33 @@ class StudentController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Student::query()
-            ->with(['user'])
-            ->currentVehicle();
+            ->with(['user', 'studentAssignments' => function ($q) {
+                $q->whereNull('removed_date')->with('vehicle');
+            }]);
 
         if (auth()->user()->role === 'admin') {
             $query->where('admin_id', auth()->id());
         }
 
-        // Apply filters if any
-        if ($request->has('search')) {
+        // Filter by search (student_name)
+        if ($request->has('search') && $request->search !== '') {
             $query->where('student_name', 'like', '%' . $request->search . '%');
         }
 
-        if ($request->has('vehicle_id')) {
+        // Filter by vehicle_id (active assignment)
+        if ($request->has('vehicle_id') && $request->vehicle_id !== '') {
             $query->whereHas('studentAssignments', function ($q) use ($request) {
                 $q->where('vehicle_id', $request->vehicle_id)->whereNull('removed_date');
             });
         }
 
-        if ($request->has('status')) {
+        // Filter by is_active
+        if ($request->has('is_active') && $request->is_active !== '') {
+            $query->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
+        }
+
+        // Filter by status
+        if ($request->has('status') && $request->status !== '') {
             $status = $request->status;
             if ($status === 'active') {
                 $query->where('is_active', true);
@@ -49,8 +58,16 @@ class StudentController extends Controller
 
         $students = $query->paginate(20);
 
+        // For each student, include current monthly_fee from active assignment
+        $items = collect($students->items())->map(function ($student) {
+            $activeAssignment = $student->studentAssignments->first();
+            $student->current_monthly_fee = $activeAssignment ? $activeAssignment->monthly_fee : null;
+            $student->current_vehicle = $activeAssignment ? $activeAssignment->vehicle : null;
+            return $student;
+        });
+
         return $this->successResponse([
-            'data' => $students->items(),
+            'data' => $items,
             'current_page' => $students->currentPage(),
             'last_page'    => $students->lastPage(),
             'per_page'     => $students->perPage(),
@@ -68,12 +85,10 @@ class StudentController extends Controller
             'class'        => 'nullable|string|max:50',
             'section'      => 'nullable|string|max:50',
             'user_id'      => 'required|exists:users,id',
-            'join_date'    => 'nullable|date',
-            'is_active'    => 'nullable|boolean',
-            // Optional assignment data
+            'is_active'    => 'boolean',
             'vehicle_id'   => 'nullable|exists:vehicles,id',
-            'monthly_fee'  => 'nullable|required_with:vehicle_id|numeric|min:0',
-            'assigned_date'=> 'nullable|required_with:vehicle_id|date',
+            'monthly_fee'  => 'required_if:vehicle_id,!=,null|nullable|numeric|min:0',
+            'assigned_date'=> 'nullable|date',
         ]);
 
         $studentData = [
@@ -81,33 +96,35 @@ class StudentController extends Controller
             'class'        => $validated['class'] ?? null,
             'section'      => $validated['section'] ?? null,
             'user_id'      => $validated['user_id'],
-            'join_date'    => $validated['join_date'] ?? today(),
+            'join_date'    => $validated['assigned_date'] ?? today(),
             'is_active'    => $validated['is_active'] ?? true,
             'admin_id'     => auth()->id(),
         ];
 
         $student = Student::create($studentData);
 
-        // Immediate assignment if details provided
+        // Immediate assignment if vehicle_id provided
         if (!empty($validated['vehicle_id'])) {
-            StudentAssignment::create([
+            $assignment = StudentAssignment::create([
                 'student_id'    => $student->id,
                 'vehicle_id'    => $validated['vehicle_id'],
                 'admin_id'      => auth()->id(),
                 'monthly_fee'   => $validated['monthly_fee'],
-                'assigned_date' => $validated['assigned_date'],
+                'assigned_date' => $validated['assigned_date'] ?? today(),
                 'assigned_by'   => auth()->id(),
             ]);
 
             VehicleLog::create([
                 'admin_id'       => auth()->id(),
                 'vehicle_id'     => $validated['vehicle_id'],
-                'event_type'     => 'student_assigned',
+                'event_type'     => 'student_added',
                 'reference_id'   => $student->id,
                 'reference_type' => 'student',
-                'note'           => "Student '{$student->student_name}' was registered and assigned directly.",
+                'note'           => "Student '{$student->student_name}' was registered and assigned.",
                 'performed_by'   => auth()->id(),
             ]);
+
+            $student->load('studentAssignments.vehicle');
         }
 
         return $this->successResponse($student, 'Student registered successfully', 201);
@@ -129,12 +146,14 @@ class StudentController extends Controller
         $student->load([
             'user',
             'studentAssignments' => function ($q) {
-                $q->whereNull('removed_date')->with('vehicle');
+                $q->with('vehicle')->orderBy('assigned_date', 'desc');
             }
         ]);
 
-        // Dynamic attribute injection so the frontend gets student.current_assignment
-        $student->current_assignment = $student->studentAssignments->first();
+        // Attach current active assignment for convenience
+        $student->current_assignment = $student->studentAssignments
+            ->whereNull('removed_date')
+            ->first();
 
         return $this->successResponse($student, 'Student details retrieved');
     }
@@ -156,11 +175,11 @@ class StudentController extends Controller
             'student_name' => 'sometimes|required|string|max:255',
             'class'        => 'nullable|string|max:50',
             'section'      => 'nullable|string|max:50',
-            'user_id'      => 'sometimes|required|exists:users,id',
             'join_date'    => 'sometimes|required|date',
             'is_active'    => 'sometimes|required|boolean',
         ]);
 
+        // Cannot change user_id after creation — ignore if sent
         $student->update($validated);
 
         return $this->successResponse($student, 'Student details updated');
@@ -178,6 +197,29 @@ class StudentController extends Controller
         }
 
         $student = $query->findOrFail($id);
+
+        // If active assignment exists, close it
+        $activeAssignment = StudentAssignment::where('student_id', $id)
+            ->whereNull('removed_date')
+            ->first();
+
+        if ($activeAssignment) {
+            $activeAssignment->update([
+                'removed_date'   => today(),
+                'removal_reason' => 'Student deleted from system.',
+            ]);
+
+            VehicleLog::create([
+                'admin_id'       => $activeAssignment->admin_id,
+                'vehicle_id'     => $activeAssignment->vehicle_id,
+                'event_type'     => 'student_removed',
+                'reference_id'   => $student->id,
+                'reference_type' => 'student',
+                'note'           => "Student '{$student->student_name}' was removed (student deleted).",
+                'performed_by'   => auth()->id(),
+            ]);
+        }
+
         $student->delete();
 
         return $this->successResponse(null, 'Student deleted successfully');
@@ -203,15 +245,15 @@ class StudentController extends Controller
             'reason'        => 'nullable|string|max:255',
         ]);
 
-        // Terminate any active assignment first
+        // If student has active assignment, auto-close it
         $activeAssignment = StudentAssignment::where('student_id', $id)
             ->whereNull('removed_date')
             ->first();
 
         if ($activeAssignment) {
             $activeAssignment->update([
-                'removed_date'   => $request->assigned_date,
-                'removal_reason' => $request->reason ?? 'Route reassignment.',
+                'removed_date'   => today(),
+                'removal_reason' => 'Transferred to new route',
             ]);
 
             VehicleLog::create([
@@ -220,7 +262,7 @@ class StudentController extends Controller
                 'event_type'     => 'student_removed',
                 'reference_id'   => $student->id,
                 'reference_type' => 'student',
-                'note'           => "Student '{$student->student_name}' was relieved from this route.",
+                'note'           => "Student '{$student->student_name}' transferred to new route.",
                 'performed_by'   => auth()->id(),
             ]);
         }
@@ -239,12 +281,14 @@ class StudentController extends Controller
         VehicleLog::create([
             'admin_id'       => auth()->id(),
             'vehicle_id'     => $request->vehicle_id,
-            'event_type'     => 'student_assigned',
+            'event_type'     => 'student_added',
             'reference_id'   => $student->id,
             'reference_type' => 'student',
             'note'           => "Student '{$student->student_name}' was assigned to this vehicle route.",
             'performed_by'   => auth()->id(),
         ]);
+
+        $assignment->load(['student', 'vehicle']);
 
         return $this->successResponse($assignment, 'Student assigned to vehicle successfully');
     }
@@ -263,7 +307,7 @@ class StudentController extends Controller
         $student = $query->findOrFail($id);
 
         $request->validate([
-            'removal_reason' => 'required|string|max:255',
+            'removal_reason' => 'nullable|string|max:255',
         ]);
 
         $activeAssignment = StudentAssignment::where('student_id', $id)
@@ -271,7 +315,7 @@ class StudentController extends Controller
             ->first();
 
         if (!$activeAssignment) {
-            return $this->errorResponse('Student has no active vehicle assignment', 400);
+            return $this->errorResponse('Student has no active bus assignment', 404);
         }
 
         $activeAssignment->update([
@@ -286,11 +330,11 @@ class StudentController extends Controller
             'event_type'     => 'student_removed',
             'reference_id'   => $student->id,
             'reference_type' => 'student',
-            'note'           => "Student '{$student->student_name}' was removed: {$request->removal_reason}",
+            'note'           => "Student '{$student->student_name}' was removed: " . ($request->removal_reason ?? 'No reason'),
             'performed_by'   => auth()->id(),
         ]);
 
-        return $this->successResponse(null, 'Student removed from route successfully');
+        return $this->successResponse($activeAssignment, 'Student removed from route successfully');
     }
 
     /**
@@ -307,8 +351,8 @@ class StudentController extends Controller
         $student = $query->findOrFail($id);
 
         $assignments = $student->studentAssignments()
-            ->with('vehicle')
-            ->latest()
+            ->with(['vehicle', 'assignedBy'])
+            ->orderBy('assigned_date', 'desc')
             ->get();
 
         return $this->successResponse($assignments, 'Assignment history retrieved');
@@ -327,10 +371,10 @@ class StudentController extends Controller
 
         $student = $query->findOrFail($id);
 
-        $dues = $student->admin->dues()
-            ->where('reference_type', 'student')
+        $dues = Due::where('reference_type', 'student')
             ->where('reference_id', $id)
-            ->latest()
+            ->with('transaction')
+            ->orderBy('due_for_month', 'desc')
             ->get();
 
         return $this->successResponse($dues, 'Student dues retrieved');

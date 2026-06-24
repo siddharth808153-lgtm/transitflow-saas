@@ -1,7 +1,7 @@
 // src/pages/transactions/TransactionsPage.tsx
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, DollarSign, Calendar, Eye, CreditCard, User, Info, FileText } from 'lucide-react';
+import { DollarSign, Eye, CreditCard, Info, FileText } from 'lucide-react';
 import api from '@/api/axios';
 import { TRANSACTIONS, DUES, VEHICLES } from '@/api/endpoints';
 import PageHeader from '@/components/shared/PageHeader';
@@ -69,26 +69,14 @@ export const TransactionsPage: React.FC = () => {
     enabled: selectedTxId !== null,
   });
 
-  // Calculate Today's collection
-  const todayStr = new Date().toISOString().split('T')[0];
-  const { data: todayTxResponse } = useQuery({
-    queryKey: ['today-transactions-collection'],
-    queryFn: async () => {
-      const res = await api.get(TRANSACTIONS.LIST, { params: { date_from: todayStr, date_to: todayStr } });
-      return res.data;
-    },
-  });
-
   const txData = txResponse?.data || {};
   const transactionsList = txData.transactions || [];
   const totalRecords = txData.pagination?.total || 0;
   const pageSize = txData.pagination?.per_page || 20;
+  const meta = txData.meta || {};
 
   const summary = summaryResponse?.data || {};
-  const vehicles = vehiclesResponse?.data || [];
-  const todayTransactions = todayTxResponse?.data?.transactions || [];
-
-  const todayCollection = todayTransactions.reduce((sum: number, tx: any) => sum + Number(tx.amount || 0), 0);
+  const vehiclesList = vehiclesResponse?.data?.vehicles || vehiclesResponse?.data || [];
 
   const getTxTypeBadge = (type: string) => {
     switch (type) {
@@ -101,6 +89,20 @@ export const TransactionsPage: React.FC = () => {
       default:
         return <Tag className="bg-slate-50 text-slate-700 border border-slate-200 font-semibold">Other</Tag>;
     }
+  };
+
+  const getMethodBadge = (method: string) => {
+    const colors: Record<string, string> = {
+      cash: 'bg-slate-100 text-slate-700',
+      upi: 'bg-emerald-50 text-emerald-700',
+      bank: 'bg-blue-50 text-blue-700',
+      other: 'bg-amber-50 text-amber-700',
+    };
+    return (
+      <Tag className={`${colors[method] || colors.other} font-semibold uppercase text-[10px]`}>
+        {method}
+      </Tag>
+    );
   };
 
   const getPersonName = (row: any) => {
@@ -150,15 +152,11 @@ export const TransactionsPage: React.FC = () => {
     {
       key: 'payment_method',
       label: 'Method',
-      render: (val: string) => (
-        <Tag className="bg-slate-100 text-slate-700 font-semibold uppercase text-[10px]">
-          {val}
-        </Tag>
-      ),
+      render: (val: string) => getMethodBadge(val),
     },
     {
       key: 'for_period',
-      label: 'For Month/Date',
+      label: 'For Period',
       render: (_: any, row: any) => {
         if (row.payment_for_month) {
           const date = new Date(row.payment_for_month);
@@ -179,7 +177,7 @@ export const TransactionsPage: React.FC = () => {
     },
     {
       key: 'created_at',
-      label: 'Date & Time',
+      label: 'Date',
       render: (val: string) => (
         <span className="text-slate-400 text-xs font-medium">{new Date(val).toLocaleString()}</span>
       ),
@@ -212,24 +210,24 @@ export const TransactionsPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           title="Today's Collection"
-          value={`₹${todayCollection.toFixed(2)}`}
+          value={`₹${Number(meta.today_total || 0).toFixed(2)}`}
           icon={<DollarSign className="w-6 h-6" />}
           color="blue"
         />
         <StatCard
-          title="This Month's Collection"
-          value={`₹${Number(summary.total_collected_this_month || 0).toFixed(2)}`}
+          title="This Month"
+          value={`₹${Number(meta.this_month_total || summary.total_collected_this_month || 0).toFixed(2)}`}
           icon={<DollarSign className="w-6 h-6" />}
           color="green"
         />
         <StatCard
-          title="Transactions This Month"
+          title="Total This Month"
           value={totalRecords}
           icon={<CreditCard className="w-6 h-6" />}
           color="purple"
         />
         <StatCard
-          title="Pending Dues This Month"
+          title="Pending Dues"
           value={Number(summary.student_dues_pending || 0) + Number(summary.passenger_dues_pending || 0)}
           icon={<Info className="w-6 h-6" />}
           color="orange"
@@ -282,7 +280,6 @@ export const TransactionsPage: React.FC = () => {
               <option value="student_fee">Student Fee</option>
               <option value="auto_daily">Auto Daily</option>
               <option value="driver_wage">Driver Wage</option>
-              <option value="other">Other</option>
             </select>
           </div>
 
@@ -317,7 +314,7 @@ export const TransactionsPage: React.FC = () => {
               className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">All Vehicles</option>
-              {vehicles.map((v: any) => (
+              {(Array.isArray(vehiclesList) ? vehiclesList : []).map((v: any) => (
                 <option key={v.id} value={v.id}>
                   {v.name}
                 </option>
@@ -366,7 +363,7 @@ export const TransactionsPage: React.FC = () => {
           (() => {
             const tx = txDetailResponse.data;
             const hasWhatsapp = tx.whatsapp_logs && tx.whatsapp_logs.length > 0;
-            const wsStatus = hasWhatsapp ? tx.whatsapp_logs[0].status : 'Pending';
+            const wsStatus = hasWhatsapp ? tx.whatsapp_logs[0].status : 'pending';
 
             return (
               <div className="space-y-4 pt-2">
@@ -421,7 +418,7 @@ export const TransactionsPage: React.FC = () => {
                 </div>
 
                 <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-600">WhatsApp Notification Status</span>
+                  <span className="text-sm font-semibold text-slate-600">WhatsApp Status</span>
                   <Tag
                     className={
                       wsStatus === 'sent' || wsStatus === 'Sent'

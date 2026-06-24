@@ -12,7 +12,9 @@ import {
   Users, 
   Receipt, 
   Settings, 
-  LogOut 
+  LogOut,
+  CreditCard,
+  User
 } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import Avatar from '@/components/ui/Avatar';
@@ -32,15 +34,39 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  const navItems = [
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Vehicles', path: '/vehicles', icon: Bus },
-    { label: 'Drivers', path: '/drivers', icon: UserCheck },
-    { label: 'Students', path: '/students', icon: GraduationCap },
-    { label: 'Passengers', path: '/passengers', icon: Users },
-    { label: 'Transactions', path: '/transactions', icon: Receipt, isPlaceholder: true },
-    { label: 'Settings', path: '/settings', icon: Settings, isPlaceholder: true },
-  ];
+  // Redirect client users to user portal
+  if (user?.role === 'user') {
+    return <Navigate to="/portal/payments" replace />;
+  }
+
+  const role = user?.role || 'admin';
+  let navItems: { label: string; path: string; icon: any; isPlaceholder?: boolean }[] = [];
+
+  if (role === 'super_admin') {
+    navItems = [
+      { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+      { label: 'Admins', path: '/admins', icon: Users },
+      { label: 'Revenue', path: '/revenue', icon: CreditCard, isPlaceholder: true },
+      { label: 'WhatsApp Settings', path: '/settings/whatsapp', icon: Settings },
+    ];
+  } else if (role === 'admin') {
+    navItems = [
+      { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+      { label: 'Vehicles', path: '/vehicles', icon: Bus },
+      { label: 'Drivers', path: '/drivers', icon: UserCheck },
+      { label: 'Students', path: '/students', icon: GraduationCap },
+      { label: 'Passengers', path: '/passengers', icon: Users },
+      { label: 'Transactions', path: '/transactions', icon: Receipt },
+      { label: 'Dues', path: '/dues', icon: CreditCard },
+      { label: 'WhatsApp Settings', path: '/settings/whatsapp', icon: Settings },
+    ];
+  } else {
+    // role is 'user' (student/parent/passenger)
+    navItems = [
+      { label: 'My Payments', path: '/my-payments', icon: CreditCard, isPlaceholder: true },
+      { label: 'Profile', path: '/profile', icon: User, isPlaceholder: true },
+    ];
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900/40 flex">

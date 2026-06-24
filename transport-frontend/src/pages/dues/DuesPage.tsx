@@ -1,7 +1,7 @@
 // src/pages/dues/DuesPage.tsx
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CreditCard, DollarSign, Calendar, RefreshCw, CheckCircle, AlertCircle, CalendarRange, Info, Bus, Car } from 'lucide-react';
+import { DollarSign, RefreshCw, AlertCircle, CalendarRange, Bus, Car } from 'lucide-react';
 import api from '@/api/axios';
 import { DUES, VEHICLES } from '@/api/endpoints';
 import PageHeader from '@/components/shared/PageHeader';
@@ -52,7 +52,7 @@ export const DuesPage: React.FC = () => {
   const [passengerStatus, setPassengerStatus] = useState('all');
 
   // Fetch Summary statistics
-  const { data: summaryResponse, isLoading: isLoadingSummary } = useQuery({
+  const { data: summaryResponse } = useQuery({
     queryKey: ['dues-summary'],
     queryFn: async () => {
       const res = await api.get(DUES.SUMMARY);
@@ -91,7 +91,6 @@ export const DuesPage: React.FC = () => {
           if (passengerStatus === 'paid') params.is_paid = 'true';
           if (passengerStatus === 'pending') params.is_paid = 'false';
         }
-        // Date range filters can be parsed on frontend or added as query params
       }
 
       const res = await api.get(DUES.LIST, { params });
@@ -99,9 +98,10 @@ export const DuesPage: React.FC = () => {
     },
   });
 
-  const vehicles = vehiclesResponse?.data || [];
-  const buses = vehicles.filter((v: any) => v.type === 'bus');
-  const autos = vehicles.filter((v: any) => v.type === 'auto');
+  const vehiclesList = vehiclesResponse?.data?.vehicles || vehiclesResponse?.data || [];
+  const allVehicles = Array.isArray(vehiclesList) ? vehiclesList : [];
+  const buses = allVehicles.filter((v: any) => v.type === 'bus');
+  const autos = allVehicles.filter((v: any) => v.type === 'auto');
 
   const summary = summaryResponse?.data || {
     total_collected_this_month: 0,
@@ -139,6 +139,11 @@ export const DuesPage: React.FC = () => {
       setGenerationResult(res.data);
       queryClient.invalidateQueries({ queryKey: ['dues-list'] });
       queryClient.invalidateQueries({ queryKey: ['dues-summary'] });
+      toast.push(
+        <Notification type="success" title="Dues Generated">
+          Generated {res.data?.generated || 0} dues, skipped {res.data?.skipped || 0}
+        </Notification>
+      );
     },
     onError: (err: any) => {
       toast.push(
@@ -182,8 +187,8 @@ export const DuesPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['dues-list'] });
       queryClient.invalidateQueries({ queryKey: ['dues-summary'] });
       toast.push(
-        <Notification type="success" title="Payment Recorded">
-          Payment recorded successfully and WhatsApp confirmation is dispatched.
+        <Notification type="success" title="✅ Payment Recorded">
+          Payment recorded & WhatsApp queued
         </Notification>
       );
       setPayDueId(null);
@@ -203,7 +208,7 @@ export const DuesPage: React.FC = () => {
     if (row.is_paid) {
       return <Tag className="bg-emerald-50 text-emerald-700 border border-emerald-200">Paid</Tag>;
     }
-    // Check if overdue: reference_type = student has due_for_month, passenger has due_for_date
+    // Check if overdue
     const now = new Date();
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     
@@ -242,7 +247,7 @@ export const DuesPage: React.FC = () => {
     },
     {
       key: 'vehicle',
-      label: 'Bus Route',
+      label: 'Bus',
       render: (val: any) => (
         <span className="text-slate-600 font-medium flex items-center gap-1">
           <Bus className="w-3.5 h-3.5 text-blue-500" />
@@ -252,7 +257,7 @@ export const DuesPage: React.FC = () => {
     },
     {
       key: 'due_for_month',
-      label: 'Due Month',
+      label: 'Month',
       render: (val: string) => {
         if (!val) return '-';
         return new Date(val).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
@@ -260,7 +265,7 @@ export const DuesPage: React.FC = () => {
     },
     {
       key: 'due_amount',
-      label: 'Due Amount',
+      label: 'Amount ₹',
       render: (val: any) => <span className="font-semibold text-slate-800">₹{Number(val).toFixed(2)}</span>,
     },
     {
@@ -275,7 +280,7 @@ export const DuesPage: React.FC = () => {
     },
     {
       key: 'actions',
-      label: 'Actions',
+      label: 'Mark as Paid',
       render: (_: any, row: any) => {
         if (!row.is_paid) {
           return (
@@ -292,7 +297,7 @@ export const DuesPage: React.FC = () => {
             </Button>
           );
         }
-        return <span className="text-xs text-slate-400 font-medium">No actions</span>;
+        return <span className="text-xs text-slate-400 font-medium">—</span>;
       },
     },
   ];
@@ -307,7 +312,7 @@ export const DuesPage: React.FC = () => {
     },
     {
       key: 'vehicle',
-      label: 'Auto Vehicle',
+      label: 'Auto',
       render: (val: any) => (
         <span className="text-slate-600 font-medium flex items-center gap-1">
           <Car className="w-3.5 h-3.5 text-amber-500" />
@@ -317,12 +322,12 @@ export const DuesPage: React.FC = () => {
     },
     {
       key: 'due_for_date',
-      label: 'Due Date',
+      label: 'Date',
       render: (val: string) => (val ? new Date(val).toLocaleDateString() : '-'),
     },
     {
       key: 'due_amount',
-      label: 'Fare Amount',
+      label: 'Amount ₹',
       render: (val: any) => <span className="font-semibold text-amber-600">₹{Number(val).toFixed(2)}</span>,
     },
     {
@@ -337,7 +342,7 @@ export const DuesPage: React.FC = () => {
     },
     {
       key: 'actions',
-      label: 'Actions',
+      label: 'Mark as Paid',
       render: (_: any, row: any) => {
         if (!row.is_paid) {
           return (
@@ -354,7 +359,7 @@ export const DuesPage: React.FC = () => {
             </Button>
           );
         }
-        return <span className="text-xs text-slate-400 font-medium">No actions</span>;
+        return <span className="text-xs text-slate-400 font-medium">—</span>;
       },
     },
   ];
@@ -398,30 +403,30 @@ export const DuesPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           title="Collected This Month"
-          value={`₹${summary.total_collected_this_month.toFixed(2)}`}
+          value={`₹${Number(summary.total_collected_this_month).toFixed(2)}`}
           icon={<DollarSign className="w-6 h-6" />}
           color="green"
         />
         <StatCard
           title="Pending This Month"
-          value={`₹${summary.total_pending_this_month.toFixed(2)}`}
+          value={`₹${Number(summary.total_pending_this_month).toFixed(2)}`}
           icon={<AlertCircle className="w-6 h-6" />}
           color="red"
         />
         <StatCard
-          title="Overdue (Previous Months)"
-          value={`₹${summary.total_overdue.toFixed(2)}`}
+          title="Overdue (Previous)"
+          value={`₹${Number(summary.total_overdue).toFixed(2)}`}
           icon={<CalendarRange className="w-6 h-6" />}
           color="orange"
         />
         <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-slate-500">Collection Rate</span>
-            <span className="text-xl font-black text-slate-800 dark:text-white">{summary.collection_rate}%</span>
+            <span className="text-xl font-black text-blue-600">{summary.collection_rate}%</span>
           </div>
           <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full mt-4 overflow-hidden">
             <div
-              className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500"
+              className="bg-blue-500 h-2.5 rounded-full transition-all duration-500"
               style={{ width: `${summary.collection_rate}%` }}
             />
           </div>
@@ -432,10 +437,10 @@ export const DuesPage: React.FC = () => {
       <Tabs defaultValue="students" onChange={(val) => setActiveTab(val as any)}>
         <Tabs.TabList className="border-b border-slate-200 dark:border-slate-800 pb-px mb-6 flex gap-6">
           <Tabs.TabNav value="students" className="pb-3 text-sm font-semibold tracking-wide border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 text-slate-500 cursor-pointer">
-            Student Dues (Monthly)
+            Student Dues
           </Tabs.TabNav>
           <Tabs.TabNav value="passengers" className="pb-3 text-sm font-semibold tracking-wide border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 text-slate-500 cursor-pointer">
-            Auto Passenger Dues (Daily)
+            Auto Passenger Dues
           </Tabs.TabNav>
         </Tabs.TabList>
 
@@ -464,10 +469,8 @@ export const DuesPage: React.FC = () => {
                 onChange={(e) => setStudentMonth(e.target.value)}
                 className="rounded-xl max-w-xs"
               />
-            </div>
 
-            {/* Actions & Filters */}
-            <div className="flex flex-col md:flex-row items-center gap-3">
+              {/* Status */}
               <select
                 value={studentStatus}
                 onChange={(e) => setStudentStatus(e.target.value)}
@@ -478,7 +481,10 @@ export const DuesPage: React.FC = () => {
                 <option value="pending">Pending</option>
                 <option value="overdue">Overdue</option>
               </select>
+            </div>
 
+            {/* Actions */}
+            <div className="flex items-center gap-3">
               <Button
                 variant="solid"
                 className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs py-2.5 px-4 shadow-md shadow-blue-500/10 flex items-center gap-1.5"
@@ -488,7 +494,7 @@ export const DuesPage: React.FC = () => {
                 }}
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                Generate Dues
+                Generate Monthly Dues
               </Button>
             </div>
           </div>
@@ -539,10 +545,8 @@ export const DuesPage: React.FC = () => {
                 onChange={(e) => setPassengerDateTo(e.target.value)}
                 className="rounded-xl max-w-xs"
               />
-            </div>
 
-            {/* Actions & Filters */}
-            <div className="flex flex-col md:flex-row items-center gap-3">
+              {/* Status */}
               <select
                 value={passengerStatus}
                 onChange={(e) => setPassengerStatus(e.target.value)}
@@ -552,7 +556,10 @@ export const DuesPage: React.FC = () => {
                 <option value="paid">Paid</option>
                 <option value="pending">Pending</option>
               </select>
+            </div>
 
+            {/* Actions */}
+            <div className="flex items-center gap-3">
               <Button
                 variant="solid"
                 className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs py-2.5 px-4 shadow-md shadow-blue-500/10 flex items-center gap-1.5"
@@ -760,12 +767,12 @@ export const DuesPage: React.FC = () => {
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                 Notes (Optional)
               </label>
-              <Input
-                type="text"
-                placeholder="e.g. Paid in full, advance"
+              <textarea
+                placeholder="e.g. Paid in full, advance payment..."
                 value={paymentNotes}
                 onChange={(e) => setPaymentNotes(e.target.value)}
-                className="rounded-xl w-full"
+                rows={3}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
               />
             </div>
 

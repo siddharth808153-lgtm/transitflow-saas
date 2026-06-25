@@ -1,16 +1,16 @@
-# Graph Report - Project 123  (2026-06-25)
+# Graph Report - Project 123  (2026-06-26)
 
 ## Corpus Check
-- 5737 files · ~4,232,836 words
+- 10001 files · ~4,242,551 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 14475 nodes · 9987 edges · 5495 communities (4268 shown, 1227 thin omitted)
-- Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 31 edges (avg confidence: 0.8)
+- 14520 nodes · 10083 edges · 5501 communities (4272 shown, 1229 thin omitted)
+- Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 38 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0ac9fdd0`
+- Built from commit: `112cf5c1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -1768,12 +1768,15 @@
 - [[_COMMUNITY_Community 3700|Community 3700]]
 - [[_COMMUNITY_Community 4364|Community 4364]]
 - [[_COMMUNITY_Community 4517|Community 4517]]
+- [[_COMMUNITY_Community 5495|Community 5495]]
+- [[_COMMUNITY_Community 5496|Community 5496]]
+- [[_COMMUNITY_Community 5499|Community 5499]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `Controller` - 27 edges
-2. `useAuthStore` - 26 edges
-3. `api` - 25 edges
-4. `ApiResponse` - 25 edges
+1. `useAuthStore` - 32 edges
+2. `Controller` - 31 edges
+3. `ApiResponse` - 29 edges
+4. `api` - 26 edges
 5. `DriverAssignment` - 21 edges
 6. `User` - 21 edges
 7. `VehicleLog` - 21 edges
@@ -1784,27 +1787,27 @@
 ## Surprising Connections (you probably didn't know these)
 - `TransitFlow SaaS` --semantically_similar_to--> `Ecme React/Vite Template`  [INFERRED] [semantically similar]
   README.md → transport-frontend/README.md
+- `AuthController` --mixes_in--> `ApiResponse`  [EXTRACTED]
+  app/Http/Controllers/Api/AuthController.php → transport-frontend/src/types/index.ts
+- `DueController` --mixes_in--> `ApiResponse`  [EXTRACTED]
+  app/Http/Controllers/Api/DueController.php → transport-frontend/src/types/index.ts
 - `ReportsController` --mixes_in--> `ApiResponse`  [EXTRACTED]
   app/Http/Controllers/Api/ReportsController.php → transport-frontend/src/types/index.ts
 - `StudentController` --mixes_in--> `ApiResponse`  [EXTRACTED]
   app/Http/Controllers/Api/StudentController.php → transport-frontend/src/types/index.ts
-- `AdminDashboardController` --mixes_in--> `ApiResponse`  [EXTRACTED]
-  app/Http/Controllers/Api/AdminDashboardController.php → transport-frontend/src/types/index.ts
-- `AuthController` --mixes_in--> `ApiResponse`  [EXTRACTED]
-  app/Http/Controllers/Api/AuthController.php → transport-frontend/src/types/index.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (5495 total, 1227 thin omitted)
+## Communities (5501 total, 1229 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.05
-Nodes (42): api, ADMIN_DASHBOARD, AUTH, DRIVERS, DUES, PASSENGERS, PORTAL, REPORTS (+34 more)
+Nodes (43): api, ADMIN_DASHBOARD, AUTH, DRIVERS, DUES, PASSENGERS, PORTAL, REPORTS (+35 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.05
-Nodes (19): AdminDashboardController, AuthController, DriverController, DueController, PassengerController, SuperAdminController, TransactionController, UserController (+11 more)
+Cohesion: 0.06
+Nodes (15): AdminDashboardController, DriverController, DriverLeaveController, DriverWageAdjustmentController, PassengerController, SuperAdminController, TransactionController, UserController (+7 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.04
@@ -1816,7 +1819,7 @@ Nodes (53): dependencies, axios, axios-mock-adapter, classnames, d3-dsv, d3-fetc
 
 ### Community 5 - "Community 5"
 Cohesion: 0.04
-Nodes (56): dependencies, axios, axios-mock-adapter, classnames, d3-dsv, d3-fetch, d3-scale, dayjs (+48 more)
+Nodes (57): dependencies, axios, axios-mock-adapter, classnames, d3-dsv, d3-fetch, d3-scale, dayjs (+49 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.04
@@ -1891,8 +1894,8 @@ Cohesion: 0.09
 Nodes (15): CreateCampaignProps, FormSchema, KpiSummaryProps, SummarySegmentProps, LeadPerformanceProps, RecentCampaignProps, AdsPerformance, AudienceGroupOption (+7 more)
 
 ### Community 25 - "Community 25"
-Cohesion: 0.09
-Nodes (7): Authenticatable, HasApiTokens, HasMany, HasOne, User, Vehicle, Notifiable
+Cohesion: 0.10
+Nodes (6): Authenticatable, HasApiTokens, HasMany, HasOne, User, Notifiable
 
 ### Community 26 - "Community 26"
 Cohesion: 0.11
@@ -1908,7 +1911,7 @@ Nodes (14): AddTaskProps, priorityList, statusList, initialState, useTasksStore,
 
 ### Community 29 - "Community 29"
 Cohesion: 0.06
-Nodes (13): BelongsTo, HasFactory, Model, AutoPassenger, Driver, DriverAssignment, Due, Student (+5 more)
+Nodes (14): BelongsTo, HasFactory, Model, AutoPassenger, Driver, DriverWageAdjustment, Due, Student (+6 more)
 
 ### Community 30 - "Community 30"
 Cohesion: 0.10
@@ -1991,12 +1994,12 @@ Cohesion: 0.16
 Nodes (8): CustomerFormProps, AccountField, AddressFields, CustomerFormSchema, OverviewFields, ProfileImageFields, TagsFields, validationSchema
 
 ### Community 52 - "Community 52"
-Cohesion: 0.23
-Nodes (8): Dispatchable, InteractsWithQueue, SendPaymentWhatsappJob, SendWelcomeWhatsappJob, AdminSetting, Queueable, SerializesModels, ShouldQueue
+Cohesion: 0.38
+Nodes (7): Dispatchable, InteractsWithQueue, SendPaymentWhatsappJob, SendWelcomeWhatsappJob, Queueable, SerializesModels, ShouldQueue
 
 ### Community 53 - "Community 53"
-Cohesion: 0.11
-Nodes (7): ReportsController, StudentController, VehicleLog, Seeder, DatabaseSeeder, StudentAssignment, WithoutModelEvents
+Cohesion: 0.09
+Nodes (7): StudentController, VehicleController, VehicleLog, Seeder, DatabaseSeeder, StudentAssignment, WithoutModelEvents
 
 ### Community 54 - "Community 54"
 Cohesion: 0.14
@@ -2251,8 +2254,8 @@ Cohesion: 0.22
 Nodes (9): scripts, build, dev, format, lint, lint:fix, prettier, prettier:fix (+1 more)
 
 ### Community 136 - "Community 136"
-Cohesion: 0.22
-Nodes (9): react, react-dom, overrides, gantt-task-react, react-simple-maps, react-syntax-highlighter, react, react-dom (+1 more)
+Cohesion: 0.14
+Nodes (13): react, react-dom, name, overrides, gantt-task-react, react-simple-maps, react-syntax-highlighter, private (+5 more)
 
 ### Community 137 - "Community 137"
 Cohesion: 0.22
@@ -3147,8 +3150,8 @@ Cohesion: 0.40
 Nodes (3): demoApi, demoHeader, demos
 
 ### Community 446 - "Community 446"
-Cohesion: 0.40
-Nodes (4): name, private, type, version
+Cohesion: 0.08
+Nodes (8): AuthController, DueController, WhatsappController, JsonResource, AdminSetting, WhatsappLog, Request, UserResource
 
 ### Community 448 - "Community 448"
 Cohesion: 0.60
@@ -3902,25 +3905,29 @@ Nodes (3): RouteKeyAction, RouteKeyState, useRouteKeyStore
 Cohesion: 0.50
 Nodes (3): ThemeAction, ThemeState, useThemeStore
 
+### Community 5496 - "Community 5496"
+Cohesion: 0.33
+Nodes (5): buildCommand, framework, installCommand, outputDirectory, rewrites
+
 ## Knowledge Gaps
-- **4030 isolated node(s):** `$schema`, `name`, `type`, `description`, `keywords` (+4025 more)
+- **4037 isolated node(s):** `$schema`, `name`, `type`, `description`, `keywords` (+4032 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **1227 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **1229 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Controller` connect `Community 1` to `Community 53`?**
-  _High betweenness centrality (0.000) - this node is a cross-community bridge._
-- **Why does `dependencies` connect `Community 3` to `Community 54`?**
+- **Why does `dependencies` connect `Community 5` to `Community 72`?**
   _High betweenness centrality (0.000) - this node is a cross-community bridge._
 - **Why does `devDependencies` connect `Community 10` to `Community 72`?**
   _High betweenness centrality (0.000) - this node is a cross-community bridge._
+- **Why does `dependencies` connect `Community 3` to `Community 54`?**
+  _High betweenness centrality (0.000) - this node is a cross-community bridge._
 - **What connects `$schema`, `name`, `type` to the rest of the system?**
-  _4030 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _4037 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.05115758028379388 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05001730702665282 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
-  _Cohesion score 0.05326460481099656 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06252587991718427 - nodes in this community are weakly interconnected._
 - **Should `Community 3` be split into smaller, more focused modules?**
   _Cohesion score 0.03773584905660377 - nodes in this community are weakly interconnected._

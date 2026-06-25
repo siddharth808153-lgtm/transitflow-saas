@@ -1,11 +1,4 @@
-[build]
-builder = "nixpacks"
-
-[build.nixpacks]
-aptPkgs = ["...", "php8.3-mysql"]
-
 [deploy]
-startCommand = "bash deploy.sh && php artisan serve --host=0.0.0.0 --port=$PORT"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"

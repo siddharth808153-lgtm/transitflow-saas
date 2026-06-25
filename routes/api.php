@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Route;
 // ─── 1. Public Routes (No Auth) ────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/register', [AuthController::class, 'register']);
 });
 
 Route::post('/whatsapp/status-update', [WhatsappController::class, 'statusUpdate']);

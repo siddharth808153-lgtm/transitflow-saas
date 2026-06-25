@@ -50,6 +50,42 @@ class AuthController extends Controller
     }
 
     /**
+     * Register a new admin account (public self-registration).
+     */
+    public function register(Request $request): JsonResponse
+    {
+        $request->validate([
+            'name'     => 'required|string|max:255',
+            'phone'    => 'required|string|unique:users,phone',
+            'email'    => 'nullable|email|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $admin = User::create([
+            'name'      => $request->name,
+            'phone'     => $request->phone,
+            'email'     => $request->email,
+            'password'  => Hash::make($request->password),
+            'role'      => 'admin',
+            'is_active' => true,
+        ]);
+
+        // Create a blank AdminSetting record for this admin
+        AdminSetting::create([
+            'admin_id' => $admin->id,
+        ]);
+
+        // Auto-login: create a Sanctum token
+        $token = $admin->createToken('auth-token')->plainTextToken;
+
+        return $this->successResponse([
+            'user'       => new UserResource($admin),
+            'token'      => $token,
+            'token_type' => 'Bearer',
+        ], 'Registration successful', 201);
+    }
+
+    /**
      * Logout the authenticated user by deleting the current access token.
      */
     public function logout(Request $request): JsonResponse

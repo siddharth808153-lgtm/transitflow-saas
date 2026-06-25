@@ -29,6 +29,7 @@
     "@tiptap/pm": "^2.10.4",
     "@tiptap/react": "^2.10.4",
     "@tiptap/starter-kit": "^2.10.4",
+    "@vercel/analytics": "^2.0.1",
     "@visx/pattern": "^3.13.0-alpha.0",
     "axios": "^1.7.7",
     "axios-mock-adapter": "^2.0.0",

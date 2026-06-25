@@ -6,6 +6,7 @@ import Theme from '@/components/template/Theme';
 import useAuthStore from '@/store/authStore';
 import AppLayout from '@/components/layout/AppLayout';
 import LoginPage from '@/pages/auth/LoginPage';
+import SignUpPage from '@/pages/auth/SignUpPage';
 import DashboardPage from '@/pages/dashboard/DashboardPage';
 import VehiclesPage from '@/pages/vehicles/VehiclesPage';
 import VehicleFormPage from '@/pages/vehicles/VehicleFormPage';
@@ -86,6 +87,14 @@ function App() {
               element={
                 <PublicRoute>
                   <LoginPage />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/sign-up"
+              element={
+                <PublicRoute>
+                  <SignUpPage />
                 </PublicRoute>
               }
             />

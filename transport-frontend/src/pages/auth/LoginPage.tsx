@@ -1,6 +1,6 @@
 // src/pages/auth/LoginPage.tsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, Link } from 'react-router';
 import { Bus, Eye, EyeOff, Lock, Phone } from 'lucide-react';
 import api from '@/api/axios';
 import { AUTH } from '@/api/endpoints';
@@ -142,6 +142,19 @@ export const LoginPage: React.FC = () => {
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
+
+            {/* Sign Up Link */}
+            <div className="text-center pt-2">
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                Don&apos;t have an account?{' '}
+              </span>
+              <Link
+                to="/sign-up"
+                className="text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+              >
+                Sign Up
+              </Link>
+            </div>
           </form>
         </Card>
       </div>

@@ -243,4 +243,39 @@ class AuthController extends Controller
 
         return $this->successResponse(null, 'Password changed successfully');
     }
+
+    /**
+     * Impersonate a user.
+     */
+    public function impersonate(Request $request, $id): JsonResponse
+    {
+        $targetUser = User::findOrFail($id);
+        $currentUser = auth()->user();
+
+        // 1. Super Admin can impersonate any Admin or User
+        // 2. Admin can impersonate any User created by them
+        if ($currentUser->role === 'super_admin') {
+            if ($targetUser->role === 'super_admin') {
+                return $this->errorResponse('Super Admins cannot impersonate other Super Admins.', 403);
+            }
+        } elseif ($currentUser->role === 'admin') {
+            if ($targetUser->role !== 'user' || $targetUser->created_by !== $currentUser->id) {
+                return $this->errorResponse('Unauthorized to impersonate this user.', 403);
+            }
+        } else {
+            return $this->errorResponse('Unauthorized.', 403);
+        }
+
+        // Revoke target user's existing tokens
+        $targetUser->tokens()->delete();
+
+        // Create a new token for the target user
+        $token = $targetUser->createToken('impersonate-token')->plainTextToken;
+
+        return $this->successResponse([
+            'user'       => new UserResource($targetUser),
+            'token'      => $token,
+            'token_type' => 'Bearer',
+        ], 'Impersonation successful');
+    }
 }

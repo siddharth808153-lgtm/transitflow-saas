@@ -2530,9 +2530,9 @@
     "semantic_hash": ""
   },
   "transport-frontend/src/pages/vehicles/VehicleDetailPage.tsx": {
-    "mtime": 1782244490.3768394,
-    "ast_hash": "e91bcd618d136f872748ae9dcb21ac2e",
-    "semantic_hash": "e91bcd618d136f872748ae9dcb21ac2e"
+    "mtime": 1782416536.6558828,
+    "ast_hash": "d2f1159b0622e25d5fa59229978e5c54",
+    "semantic_hash": ""
   },
   "transport-frontend/src/pages/vehicles/VehicleFormPage.tsx": {
     "mtime": 1782244367.8507688,

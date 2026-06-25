@@ -37,6 +37,7 @@ export const VehicleDetailPage: React.FC = () => {
   const [assignOpen, setAssignOpen] = useState(false);
   const [relieveOpen, setRelieveOpen] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState<string | number>('');
+  const [assignDate, setAssignDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [relieveReason, setRelieveReason] = useState('');
 
   // Fetch vehicle detail
@@ -85,8 +86,8 @@ export const VehicleDetailPage: React.FC = () => {
 
   // Assign Driver Mutation
   const assignMutation = useMutation({
-    mutationFn: async (driverId: string | number) => {
-      return await api.post(DRIVERS.ASSIGN(driverId), { vehicle_id: id });
+    mutationFn: async ({ driverId, assignedDate }: { driverId: string | number; assignedDate: string }) => {
+      return await api.post(DRIVERS.ASSIGN(driverId), { vehicle_id: id, assigned_date: assignedDate });
     },
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['vehicle', id] });
@@ -98,6 +99,7 @@ export const VehicleDetailPage: React.FC = () => {
       );
       setAssignOpen(false);
       setSelectedDriverId('');
+      setAssignDate(new Date().toISOString().split('T')[0]);
     },
     onError: (err: any) => {
       toast.push(
@@ -139,7 +141,7 @@ export const VehicleDetailPage: React.FC = () => {
       toast.push(<Notification type="danger" title="Validation Error">Please select a driver.</Notification>);
       return;
     }
-    assignMutation.mutate(selectedDriverId);
+    assignMutation.mutate({ driverId: selectedDriverId, assignedDate: assignDate });
   };
 
   const handleRelieveSubmit = (e: React.FormEvent) => {
@@ -427,6 +429,18 @@ export const VehicleDetailPage: React.FC = () => {
                 All active drivers are currently assigned.
               </p>
             )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+              Assigned Date
+            </label>
+            <Input
+              type="date"
+              value={assignDate}
+              onChange={(e) => setAssignDate(e.target.value)}
+              className="rounded-xl"
+            />
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button size="sm" type="button" onClick={() => setAssignOpen(false)}>

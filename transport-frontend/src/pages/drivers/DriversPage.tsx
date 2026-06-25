@@ -27,6 +27,7 @@ export const DriversPage: React.FC = () => {
   const [deleteDriverId, setDeleteDriverId] = useState<string | number | null>(null);
   const [assignDriverId, setAssignDriverId] = useState<string | number | null>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | number>('');
+  const [assignDate, setAssignDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [leavesDriverId, setLeavesDriverId] = useState<string | number | null>(null);
   const [adjustmentDriverId, setAdjustmentDriverId] = useState<string | number | null>(null);
 
@@ -91,8 +92,8 @@ export const DriversPage: React.FC = () => {
 
   // Assign Driver Mutation
   const assignMutation = useMutation({
-    mutationFn: async ({ driverId, vehicleId }: { driverId: string | number; vehicleId: string | number }) => {
-      return await api.post(DRIVERS.ASSIGN(driverId), { vehicle_id: vehicleId });
+    mutationFn: async ({ driverId, vehicleId, assignedDate }: { driverId: string | number; vehicleId: string | number; assignedDate: string }) => {
+      return await api.post(DRIVERS.ASSIGN(driverId), { vehicle_id: vehicleId, assigned_date: assignedDate });
     },
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
@@ -103,6 +104,7 @@ export const DriversPage: React.FC = () => {
       );
       setAssignDriverId(null);
       setSelectedVehicleId('');
+      setAssignDate(new Date().toISOString().split('T')[0]);
     },
     onError: (err: any) => {
       toast.push(
@@ -116,7 +118,7 @@ export const DriversPage: React.FC = () => {
   const handleAssignSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!assignDriverId || !selectedVehicleId) return;
-    assignMutation.mutate({ driverId: assignDriverId, vehicleId: selectedVehicleId });
+    assignMutation.mutate({ driverId: assignDriverId, vehicleId: selectedVehicleId, assignedDate: assignDate });
   };
 
   // Queries and mutations for Driver Leaves
@@ -476,6 +478,18 @@ export const DriversPage: React.FC = () => {
                 All vehicles are currently assigned to drivers.
               </p>
             )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+              Assigned Date
+            </label>
+            <Input
+              type="date"
+              value={assignDate}
+              onChange={(e) => setAssignDate(e.target.value)}
+              className="rounded-xl"
+            />
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button size="sm" type="button" onClick={() => setAssignDriverId(null)}>

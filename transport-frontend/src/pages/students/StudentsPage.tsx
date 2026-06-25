@@ -246,7 +246,7 @@ export const StudentsPage: React.FC = () => {
           <Button 
             size="xs" 
             variant="default"
-            className="hover:text-blue-600"
+            className="hover:text-blue-600 no-underline"
             onClick={() => navigate(`/students/${row.id}`)}
           >
             View
@@ -254,7 +254,7 @@ export const StudentsPage: React.FC = () => {
           <Button 
             size="xs" 
             variant="default"
-            className="hover:text-blue-600"
+            className="hover:text-blue-600 no-underline"
             onClick={() => navigate(`/students/${row.id}/edit`)}
           >
             Edit
@@ -263,7 +263,7 @@ export const StudentsPage: React.FC = () => {
             <Button 
               size="xs" 
               variant="default"
-              className="text-amber-600 hover:bg-amber-50"
+              className="text-amber-600 hover:bg-amber-50 no-underline"
               onClick={() => setRemoveVehicleId(row.id)}
             >
               Remove Bus
@@ -273,18 +273,18 @@ export const StudentsPage: React.FC = () => {
             <Button 
               size="xs" 
               variant="default"
-              className="text-blue-600 hover:bg-blue-50"
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 no-underline font-semibold"
               disabled={impersonateMutation.isPending}
+              icon={<LogIn className="w-3.5 h-3.5" />}
               onClick={() => impersonateMutation.mutate(row.parent.id)}
             >
-              <LogIn className="w-3.5 h-3.5 mr-1" />
               {impersonateMutation.isPending && impersonateMutation.variables === row.parent.id ? '...' : 'Impersonate Parent'}
             </Button>
           )}
           <Button 
             size="xs" 
             variant="default"
-            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 no-underline"
             onClick={() => setDeleteStudentId(row.id)}
           >
             Delete

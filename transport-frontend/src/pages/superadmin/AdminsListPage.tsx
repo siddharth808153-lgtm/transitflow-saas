@@ -347,21 +347,21 @@ export const AdminsListPage: React.FC = () => {
                           <Button 
                             size="xs" 
                             variant="default"
-                            className="hover:text-blue-600 rounded-lg py-1 px-2.5"
+                            className="hover:text-blue-600 rounded-lg py-1 px-2.5 no-underline"
+                            icon={<Eye className="w-3.5 h-3.5" />}
                             onClick={() => setSelectedAdminId(admin.id)}
                           >
-                            <Eye className="w-3.5 h-3.5 mr-1" />
                             View
                           </Button>
                           {admin.is_active && (
                             <Button 
                               size="xs" 
                               variant="default"
-                              className="text-blue-600 hover:bg-blue-50 rounded-lg py-1 px-2.5"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg py-1 px-2.5 no-underline font-semibold"
                               disabled={impersonateMutation.isPending}
+                              icon={<LogIn className="w-3.5 h-3.5" />}
                               onClick={() => impersonateMutation.mutate(admin.id)}
                             >
-                              <LogIn className="w-3.5 h-3.5 mr-1" />
                               {impersonateMutation.isPending && impersonateMutation.variables === admin.id ? 'Loading...' : 'Impersonate'}
                             </Button>
                           )}
@@ -369,8 +369,8 @@ export const AdminsListPage: React.FC = () => {
                             size="xs" 
                             variant="default"
                             className={admin.is_active 
-                              ? 'text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg py-1 px-2.5' 
-                              : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg py-1 px-2.5'
+                              ? 'text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg py-1 px-2.5 no-underline' 
+                              : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg py-1 px-2.5 no-underline'
                             }
                             onClick={() => setAdminToToggle({ id: admin.id, name: admin.name, active: admin.is_active })}
                           >

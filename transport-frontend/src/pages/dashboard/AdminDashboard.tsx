@@ -442,7 +442,7 @@ export const AdminDashboard: React.FC = () => {
       <div className="flex flex-wrap items-center gap-3 bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl shadow-sm">
         <Button 
           variant="solid" 
-          className="bg-blue-650 hover:bg-blue-705 text-white rounded-2xl flex items-center gap-2 px-5 py-3 text-xs shadow-lg shadow-blue-500/10 font-bold active:scale-[0.98] transition-all"
+          className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center gap-2 px-5 py-3 text-xs shadow-lg shadow-blue-500/10 font-bold active:scale-[0.98] transition-all"
           onClick={() => setIsPayModalOpen(true)}
         >
           <DollarSign className="w-4 h-4" />

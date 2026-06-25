@@ -92,7 +92,9 @@ export const StudentDetailPage: React.FC = () => {
   const student = studentResponse?.data;
   const historyList = historyResponse?.data || [];
   const duesList = duesResponse?.data || [];
-  const buses = (busesResponse?.data || []).filter((v: any) => v.type === 'bus' && v.is_active);
+  const busesData = busesResponse?.data?.vehicles || [];
+  const busesList = Array.isArray(busesData) ? busesData : Object.values(busesData);
+  const buses = busesList.filter((v: any) => v.type === 'bus' && v.is_active);
 
   // Assign/Change Bus Mutation
   const assignMutation = useMutation({

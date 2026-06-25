@@ -79,8 +79,9 @@ export const VehicleDetailPage: React.FC = () => {
   const vehicle = vehicleResponse?.data;
   const logs = logsResponse?.data || [];
   const students = studentsResponse?.data || [];
-  const drivers = driversResponse?.data || [];
-  const unassignedDrivers = drivers.filter((d: any) => !d.current_vehicle_id);
+  const driversData = driversResponse?.data?.drivers || [];
+  const driversList = Array.isArray(driversData) ? driversData : Object.values(driversData);
+  const unassignedDrivers = driversList.filter((d: any) => !d.current_vehicle_id);
 
   // Assign Driver Mutation
   const assignMutation = useMutation({

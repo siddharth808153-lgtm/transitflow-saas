@@ -1,0 +1,12 @@
+# Ignore backend files for Vercel deployment
+/vendor
+/node_modules
+/transport-frontend/node_modules
+/storage
+/bootstrap/cache
+/tests
+/database
+/app
+/ecme_v1.3.8
+.git
+.railway

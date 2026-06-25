@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, GraduationCap, Bus, Calendar, Trash2, Edit, Eye, UserMinus, DollarSign, Users, AlertCircle } from 'lucide-react';
+import { Plus, Search, GraduationCap, Bus, Calendar, Trash2, Edit, Eye, UserMinus, DollarSign, Users, AlertCircle, LogIn } from 'lucide-react';
 import api from '@/api/axios';
+import useAuthStore from '@/store/authStore';
 import { STUDENTS, VEHICLES } from '@/api/endpoints';
 import PageHeader from '@/components/shared/PageHeader';
 import StatCard from '@/components/shared/StatCard';
@@ -26,6 +27,31 @@ export const StudentsPage: React.FC = () => {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | number>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Impersonate Parent Mutation
+  const impersonateMutation = useMutation({
+    mutationFn: async (id: number | string) => {
+      const res = await api.post(`/auth/impersonate/${id}`);
+      return res.data;
+    },
+    onSuccess: (res) => {
+      const { user, token } = res.data || {};
+      useAuthStore.getState().impersonate(user, token);
+      toast.push(
+        <Notification type="success" title="Impersonating Parent">
+          Logged in as parent {user.name}
+        </Notification>
+      );
+      navigate('/portal/payments');
+    },
+    onError: (err: any) => {
+      toast.push(
+        <Notification type="danger" title="Impersonation Failed">
+          {err.response?.data?.message || 'Failed to impersonate parent.'}
+        </Notification>
+      );
+    },
+  });
 
   // Dialog / Action states
   const [deleteStudentId, setDeleteStudentId] = useState<string | number | null>(null);
@@ -241,6 +267,18 @@ export const StudentsPage: React.FC = () => {
               onClick={() => setRemoveVehicleId(row.id)}
             >
               Remove Bus
+            </Button>
+          )}
+          {row.parent?.id && row.is_active && (
+            <Button 
+              size="xs" 
+              variant="default"
+              className="text-blue-600 hover:bg-blue-50"
+              disabled={impersonateMutation.isPending}
+              onClick={() => impersonateMutation.mutate(row.parent.id)}
+            >
+              <LogIn className="w-3.5 h-3.5 mr-1" />
+              {impersonateMutation.isPending && impersonateMutation.variables === row.parent.id ? '...' : 'Impersonate Parent'}
             </Button>
           )}
           <Button 

@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Users, Car, Phone, Trash2, Edit, Eye, DollarSign, AlertCircle } from 'lucide-react';
+import { Plus, Search, Users, Car, Phone, Trash2, Edit, Eye, DollarSign, AlertCircle, LogIn } from 'lucide-react';
 import api from '@/api/axios';
+import useAuthStore from '@/store/authStore';
 import { PASSENGERS, VEHICLES } from '@/api/endpoints';
 import PageHeader from '@/components/shared/PageHeader';
 import StatCard from '@/components/shared/StatCard';
@@ -24,6 +25,31 @@ export const PassengersPage: React.FC = () => {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | number>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [deletePassengerId, setDeletePassengerId] = useState<string | number | null>(null);
+
+  // Impersonate User Mutation
+  const impersonateMutation = useMutation({
+    mutationFn: async (id: number | string) => {
+      const res = await api.post(`/auth/impersonate/${id}`);
+      return res.data;
+    },
+    onSuccess: (res) => {
+      const { user, token } = res.data || {};
+      useAuthStore.getState().impersonate(user, token);
+      toast.push(
+        <Notification type="success" title="Impersonating User">
+          Logged in as {user.name}
+        </Notification>
+      );
+      navigate('/portal/payments');
+    },
+    onError: (err: any) => {
+      toast.push(
+        <Notification type="danger" title="Impersonation Failed">
+          {err.response?.data?.message || 'Failed to impersonate passenger.'}
+        </Notification>
+      );
+    },
+  });
 
   // Fetch Passengers
   const { data: passengersResponse, isLoading } = useQuery({
@@ -184,6 +210,18 @@ export const PassengersPage: React.FC = () => {
           >
             Edit
           </Button>
+          {row.user_id && row.is_active && (
+            <Button 
+              size="xs" 
+              variant="default"
+              className="text-blue-600 hover:bg-blue-50"
+              disabled={impersonateMutation.isPending}
+              onClick={() => impersonateMutation.mutate(row.user_id)}
+            >
+              <LogIn className="w-3.5 h-3.5 mr-1" />
+              {impersonateMutation.isPending && impersonateMutation.variables === row.user_id ? '...' : 'Impersonate'}
+            </Button>
+          )}
           <Button 
             size="xs" 
             variant="default"

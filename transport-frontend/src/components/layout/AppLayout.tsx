@@ -25,7 +25,7 @@ interface AppLayoutProps {
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { isAuthenticated, user, logout, backupToken, stopImpersonating } = useAuthStore();
   const isCollapsed = useThemeStore((state) => state.layout.sideNavCollapse);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -151,6 +151,23 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:pl-16' : 'md:pl-60'} transition-all duration-300 min-w-0`}>
+        {backupToken && (
+          <div className="bg-amber-500 text-white px-6 py-2.5 flex items-center justify-between text-xs sm:text-sm font-semibold z-40 border-b border-amber-600 shadow-sm">
+            <span className="flex items-center gap-1.5">
+              <span>🕵️</span>
+              <span>You are currently impersonating <strong className="underline">{user?.name}</strong> ({user?.role})</span>
+            </span>
+            <button 
+              onClick={() => {
+                stopImpersonating();
+                window.location.href = '/dashboard';
+              }}
+              className="bg-white text-amber-700 px-3 py-1 rounded-lg text-xs font-bold hover:bg-amber-50 transition-colors shadow-sm flex-shrink-0"
+            >
+              Stop Impersonation
+            </button>
+          </div>
+        )}
         <Topbar onMobileMenuToggle={() => setMobileMenuOpen(true)} />
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
           {children || <Outlet />}

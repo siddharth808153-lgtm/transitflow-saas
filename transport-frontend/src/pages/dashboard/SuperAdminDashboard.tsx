@@ -16,7 +16,8 @@ import {
   MessageSquare,
   Activity,
   ArrowUpRight,
-  Loader2
+  Loader2,
+  LogIn
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -30,6 +31,7 @@ import {
   Bar
 } from 'recharts';
 import api from '@/api/axios';
+import useAuthStore from '@/store/authStore';
 import { SUPER_ADMIN } from '@/api/endpoints';
 import PageHeader from '@/components/shared/PageHeader';
 import StatCard from '@/components/shared/StatCard';
@@ -48,6 +50,31 @@ export const SuperAdminDashboard: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedAdminId, setSelectedAdminId] = useState<number | string | null>(null);
   const [adminToToggle, setAdminToToggle] = useState<{ id: number | string, name: string, active: boolean } | null>(null);
+
+  // Impersonate Admin Mutation
+  const impersonateMutation = useMutation({
+    mutationFn: async (id: number | string) => {
+      const res = await api.post(`/auth/impersonate/${id}`);
+      return res.data;
+    },
+    onSuccess: (res) => {
+      const { user, token } = res.data || {};
+      useAuthStore.getState().impersonate(user, token);
+      toast.push(
+        <Notification type="success" title="Impersonating Admin">
+          Successfully logged in as {user.name}
+        </Notification>
+      );
+      window.location.href = '/dashboard';
+    },
+    onError: (err: any) => {
+      toast.push(
+        <Notification type="danger" title="Impersonation Failed">
+          {err.response?.data?.message || 'Failed to impersonate admin.'}
+        </Notification>
+      );
+    },
+  });
 
   // 1. Platform Statistics
   const { data: statsResponse, isLoading: isLoadingStats } = useQuery({
@@ -392,6 +419,18 @@ export const SuperAdminDashboard: React.FC = () => {
                             <Eye className="w-3.5 h-3.5 mr-1" />
                             View
                           </Button>
+                          {admin.is_active && (
+                            <Button 
+                              size="xs" 
+                              variant="default"
+                              className="text-blue-600 hover:bg-blue-50 rounded-lg py-1 px-2.5"
+                              disabled={impersonateMutation.isPending}
+                              onClick={() => impersonateMutation.mutate(admin.id)}
+                            >
+                              <LogIn className="w-3.5 h-3.5 mr-1" />
+                              {impersonateMutation.isPending && impersonateMutation.variables === admin.id ? 'Loading...' : 'Impersonate'}
+                            </Button>
+                          )}
                           <Button 
                             size="xs" 
                             variant="default"

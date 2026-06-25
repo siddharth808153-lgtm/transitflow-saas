@@ -2485,8 +2485,8 @@
     "semantic_hash": "8d9b37df42ad22eb72fd3aa6cda94dd8"
   },
   "transport-frontend/src/pages/drivers/DriversPage.tsx": {
-    "mtime": 1782335422.2215457,
-    "ast_hash": "6264cc58329a5525bb7febe0bf08fba4",
+    "mtime": 1782416984.4592094,
+    "ast_hash": "917c1fb0c73a0fa6ce472763b93ba793",
     "semantic_hash": ""
   },
   "transport-frontend/src/pages/dues/DuesPage.tsx": {
@@ -2530,8 +2530,8 @@
     "semantic_hash": ""
   },
   "transport-frontend/src/pages/vehicles/VehicleDetailPage.tsx": {
-    "mtime": 1782416536.6558828,
-    "ast_hash": "d2f1159b0622e25d5fa59229978e5c54",
+    "mtime": 1782416976.9906945,
+    "ast_hash": "e1302bfe3c1a5ac01c60eaa6839d8c63",
     "semantic_hash": ""
   },
   "transport-frontend/src/pages/vehicles/VehicleFormPage.tsx": {
